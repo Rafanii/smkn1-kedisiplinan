@@ -3,8 +3,7 @@
 @section('title', 'Riwayat Pelanggaran')
 
 @section('styles')
-    <!-- Panggil CSS Eksternal -->
-    <link rel="stylesheet" href="{{ asset('css/pages/riwayat-index.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/pages/riwayat/index.css') }}">
 @endsection
 
 @section('content')
@@ -38,17 +37,15 @@
         </div>
     </div>
 
-    <!-- FILTER SECTION (STICKY) -->
-    <!-- ID stickyFilter digunakan oleh JS untuk efek melayang -->
-    <div id="stickyFilter" class="card card-outline card-primary shadow-sm border-0">
-        
-        <div class="card-body bg-white py-3" style="border-radius: 8px;">
+    <!-- FILTER SECTION (STICKY) - DISAMBIL STYLE DARI HALAMAN SISWA -->
+    <div id="stickyFilter" class="card card-outline card-primary shadow-sm mb-4">
+        <div class="card-body bg-light py-3">
             <form id="filterForm" action="{{ route('riwayat.index') }}" method="GET">
                 <div class="row align-items-end">
-                    
-                    <!-- Filter Tanggal -->
+
+                    <!-- FILTER RENTANG WAKTU (seperti Tingkat di Siswa) -->
                     <div class="col-md-3 mb-2">
-                        <label class="filter-label">Rentang Waktu</label>
+                        <label class="small font-weight-bold text-muted mb-1">Rentang Waktu</label>
                         <div class="input-group input-group-sm">
                             <input type="date" name="start_date" value="{{ request('start_date') }}" class="form-control form-control-clean" onchange="this.form.submit()">
                             <div class="input-group-prepend input-group-append">
@@ -60,8 +57,8 @@
 
                     <!-- Filter Kelas (Admin Only) -->
                     @if(Auth::user()->role->nama_role != 'Wali Kelas')
-                    <div class="col-md-2 mb-2">
-                        <label class="filter-label">Kelas</label>
+                    <div class="col-md-3 mb-2">
+                        <label class="small font-weight-bold text-muted mb-1">Kelas</label>
                         <select name="kelas_id" class="form-control form-control-sm form-control-clean" onchange="this.form.submit()">
                             <option value="">- Semua -</option>
                             @foreach($allKelas as $k)
@@ -72,8 +69,8 @@
                     @endif
 
                     <!-- Filter Jenis Pelanggaran -->
-                    <div class="col-md-4 mb-2">
-                        <label class="filter-label">Jenis Pelanggaran</label>
+                    <div class="col-md-3 mb-2">
+                        <label class="small font-weight-bold text-muted mb-1">Jenis Pelanggaran</label>
                         <select name="jenis_pelanggaran_id" class="form-control form-control-sm form-control-clean" onchange="this.form.submit()">
                             <option value="">- Semua Jenis -</option>
                             @foreach($allPelanggaran as $jp)
@@ -84,9 +81,9 @@
                         </select>
                     </div>
 
-                    <!-- Live Search -->
+                    <!-- LIVE SEARCH (Sama layout seperti Siswa) -->
                     <div class="col-md-3 mb-2">
-                        <label class="filter-label">Cari Siswa</label>
+                        <label class="small font-weight-bold text-muted mb-1">Cari Siswa</label>
                         <div class="input-group input-group-sm">
                             <input type="text" id="liveSearch" name="cari_siswa" class="form-control form-control-clean" 
                                    placeholder="Ketik nama..." value="{{ request('cari_siswa') }}">
@@ -98,11 +95,10 @@
 
                 </div>
 
-                <!-- Tombol Reset (Hanya muncul jika filter aktif) -->
                 @if(request()->has('cari_siswa') || request()->has('start_date') || request()->has('jenis_pelanggaran_id') || request()->has('kelas_id') || request()->has('pencatat_id'))
-                <div class="row mt-1 pt-2 border-top">
-                    <div class="col-12 text-right">
-                         <a href="{{ route('riwayat.index') }}" class="btn btn-default btn-xs shadow-sm text-danger font-weight-bold">
+                <div class="row mt-2">
+                    <div class="col-12 mt-2 text-right border-top pt-2">
+                         <a href="{{ route('riwayat.index') }}" class="btn btn-xs text-danger font-weight-bold">
                             <i class="fas fa-times-circle mr-1"></i> Hapus Filter
                         </a>
                     </div>
@@ -145,28 +141,21 @@
 
                             <!-- 2. SISWA -->
                             <td>
-                                <div class="student-profile">
-                                    @php $initial = strtoupper(substr($r->siswa->nama_siswa, 0, 1)); @endphp
-                                    <div class="avatar-circle">{{ $initial }}</div>
-                                    
-                                    <div>
-                                        <a href="{{ route('riwayat.index', ['cari_siswa' => $r->siswa->nama_siswa]) }}" class="text-primary font-weight-bold smart-link" title="Lihat riwayat siswa ini">
-                                            {{ $r->siswa->nama_siswa }}
+                                <div>
+                                    <a href="{{ route('riwayat.index', ['cari_siswa' => $r->siswa->nama_siswa]) }}" class="text-primary font-weight-bold smart-link" title="Lihat riwayat siswa ini">
+                                        {{ $r->siswa->nama_siswa }}
+                                    </a>
+                                    <div class="student-meta mt-1">
+                                        <a href="{{ route('riwayat.index', ['kelas_id' => $r->siswa->kelas_id]) }}" class="badge-class text-decoration-none" title="Filter kelas">
+                                            {{ $r->siswa->kelas->nama_kelas }}
                                         </a>
-                                        
-                                        <div class="student-meta">
-                                            <a href="{{ route('riwayat.index', ['kelas_id' => $r->siswa->kelas_id]) }}" class="badge-class text-decoration-none" title="Filter kelas">
-                                                {{ $r->siswa->kelas->nama_kelas }}
-                                            </a>
-                                            
-                                            @php
-                                                $totalPoinSiswa = $r->siswa->riwayatPelanggaran->sum(fn($rp) => $rp->jenisPelanggaran->poin);
-                                                $bgTotal = $totalPoinSiswa >= 100 ? 'bg-danger' : ($totalPoinSiswa >= 50 ? 'bg-warning' : 'bg-secondary');
-                                            @endphp
-                                            <span class="badge-poin-total {{ $bgTotal }}" title="Total Akumulasi Poin Siswa Ini">
-                                                Total: {{ $totalPoinSiswa }}
-                                            </span>
-                                        </div>
+                                        @php
+                                            $totalPoinSiswa = $r->siswa->riwayatPelanggaran->sum(fn($rp) => $rp->jenisPelanggaran->poin);
+                                            $bgTotal = $totalPoinSiswa >= 100 ? 'bg-danger' : ($totalPoinSiswa >= 50 ? 'bg-warning' : 'bg-secondary');
+                                        @endphp
+                                        <span class="badge-poin-total {{ $bgTotal }} ml-2" title="Total Akumulasi Poin Siswa Ini">
+                                            Total: {{ $totalPoinSiswa }}
+                                        </span>
                                     </div>
                                 </div>
                             </td>
@@ -250,6 +239,5 @@
 @endsection
 
 @push('scripts')
-    <!-- Load Logic Eksternal -->
-    <script src="{{ asset('js/pages/riwayat-index.js') }}"></script>
+    <script src="{{ asset('js/pages/riwayat/index.js') }}"></script>
 @endpush
