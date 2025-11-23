@@ -73,12 +73,12 @@ class UserController extends Controller
                 'password' => Hash::make($request->password),
             ]);
 
-            $roleOrtu = Role::where('nama_role', 'Orang Tua')->first();
+            $roleOrtu = Role::where('nama_role', 'Wali Murid')->first();
             
             if ($roleOrtu && $request->role_id == $roleOrtu->id) {
                 if ($request->filled('siswa_ids')) {
                     Siswa::whereIn('id', $request->siswa_ids)->update([
-                        'orang_tua_user_id' => $user->id
+                        'wali_murid_user_id' => $user->id
                     ]);
                 }
             }
@@ -129,16 +129,16 @@ class UserController extends Controller
 
             $user->update($data);
 
-            $roleOrtu = Role::where('nama_role', 'Orang Tua')->first();
+            $roleOrtu = Role::where('nama_role', 'Wali Murid')->first();
 
             if ($roleOrtu && $request->role_id == $roleOrtu->id) {
                 // Reset anak lama
-                Siswa::where('orang_tua_user_id', $user->id)->update(['orang_tua_user_id' => null]);
+                Siswa::where('wali_murid_user_id', $user->id)->update(['wali_murid_user_id' => null]);
 
                 // Set anak baru
                 if ($request->filled('siswa_ids')) {
                     Siswa::whereIn('id', $request->siswa_ids)->update([
-                        'orang_tua_user_id' => $user->id
+                        'wali_murid_user_id' => $user->id
                     ]);
                 }
             }
@@ -151,6 +151,28 @@ class UserController extends Controller
     {
         if (auth()->id() == $user->id) {
             return back()->with('error', 'Anda tidak bisa menghapus akun sendiri!');
+        }
+
+        // Prevent deletion if user still holds important relations (kaprodi/wali kelas, pencatat riwayat, penyetuju tindak lanjut)
+        if ($user->jurusanDiampu) {
+            return back()->with('error', 'Gagal menghapus: User ini masih menjadi Kaprodi pada sebuah jurusan. Hapus atau pindahkan relasi terlebih dahulu.');
+        }
+
+        if ($user->kelasDiampu) {
+            return back()->with('error', 'Gagal menghapus: User ini masih menjadi Wali Kelas untuk sebuah kelas. Hapus atau pindahkan relasi terlebih dahulu.');
+        }
+
+        if ($user->riwayatDicatat()->exists()) {
+            return back()->with('error', 'Gagal menghapus: User ini pernah mencatat riwayat pelanggaran. Harap tinjau data terlebih dahulu.');
+        }
+
+        if ($user->tindakLanjutDisetujui()->exists()) {
+            return back()->with('error', 'Gagal menghapus: User ini pernah menyetujui tindak lanjut. Harap tinjau data terlebih dahulu.');
+        }
+
+        // For parent/ortu: detach anak-anaknya (set null)
+        if ($user->anakWali()->exists()) {
+            Siswa::where('wali_murid_user_id', $user->id)->update(['wali_murid_user_id' => null]);
         }
 
         $user->delete();

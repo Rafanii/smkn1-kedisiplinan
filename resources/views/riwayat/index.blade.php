@@ -4,7 +4,7 @@
 
 @section('styles')
     <!-- Panggil CSS Eksternal -->
-    <link rel="stylesheet" href="{{ asset('css/pages/riwayat-index.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/pages/riwayat/index.css') }}">
 @endsection
 
 @section('content')
@@ -251,5 +251,5 @@
 
 @push('scripts')
     <!-- Load Logic Eksternal -->
-    <script src="{{ asset('js/pages/riwayat-index.js') }}"></script>
+    <script src="{{ asset('js/pages/riwayat/index.js') }}"></script>
 @endpush

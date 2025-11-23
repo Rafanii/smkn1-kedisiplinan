@@ -49,32 +49,25 @@ class LoginController extends Controller
             $user = Auth::user();
 
             // 3. LOGIKA PENGALIHAN (REDIRECT) BERDASARKAN PERAN
-            // Ini menerjemahkan Use Case Diagram kita menjadi kode
-            
-            $role = $user->role->nama_role;
+            // Gunakan helper hasRole/hasAnyRole untuk keputusan
+            if (!$user->role) {
+                Auth::logout();
+                return redirect('/')->withErrors(['username' => 'Role tidak valid.']);
+            }
 
-            if ($role == 'Waka Kesiswaan' || $role == 'Operator Sekolah') {
-                // Waka & Operator adalah admin, kita arahkan ke dashboard admin
+            if ($user->hasAnyRole(['Waka Kesiswaan', 'Operator Sekolah'])) {
                 return redirect()->intended('/dashboard/admin');
-            
-            } elseif ($role == 'Kepala Sekolah') {
+            } elseif ($user->hasRole('Kepala Sekolah')) {
                 return redirect()->intended('/dashboard/kepsek');
-            
-            } elseif ($role == 'Kaprodi') {
+            } elseif ($user->hasRole('Kaprodi')) {
                 return redirect()->intended('/dashboard/kaprodi');
-            
-            } elseif ($role == 'Wali Kelas') {
+            } elseif ($user->hasRole('Wali Kelas')) {
                 return redirect()->intended('/dashboard/walikelas');
-            
-            } elseif ($role == 'Guru') {
-                // Guru tidak punya dashboard, kita arahkan ke halaman utamanya
+            } elseif ($user->hasRole('Guru')) {
                 return redirect()->intended('/pelanggaran/catat');
-            
-            } elseif ($role == 'Orang Tua') {
+            } elseif ($user->hasRole('Wali Murid')) {
                 return redirect()->intended('/dashboard/ortu');
-            
             } else {
-                // Jika rolenya tidak dikenal, logout saja
                 Auth::logout();
                 return redirect('/')->withErrors(['username' => 'Role tidak valid.']);
             }

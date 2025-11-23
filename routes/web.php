@@ -6,7 +6,7 @@ use App\Http\Controllers\Dashboard\AdminDashboardController;
 use App\Http\Controllers\Dashboard\KepsekDashboardController;
 use App\Http\Controllers\Dashboard\KaprodiDashboardController;
 use App\Http\Controllers\Dashboard\WaliKelasDashboardController;
-use App\Http\Controllers\Dashboard\OrtuDashboardController;
+use App\Http\Controllers\Dashboard\WaliMuridDashboardController;
 use App\Http\Controllers\PelanggaranController;
 use App\Http\Controllers\SiswaController;
 use App\Http\Controllers\UserController;
@@ -47,9 +47,9 @@ Route::middleware(['auth'])->group(function () {
         ->middleware('role:Wali Kelas')
         ->name('dashboard.walikelas');
 
-    Route::get('/dashboard/ortu', [OrtuDashboardController::class, 'index'])
-        ->middleware('role:Orang Tua')
-        ->name('dashboard.ortu');
+    Route::get('/dashboard/ortu', [WaliMuridDashboardController::class, 'index'])
+        ->middleware('role:Wali Murid')
+        ->name('dashboard.wali_murid');
 
 
     // ====================================================

@@ -3,7 +3,7 @@
 @section('title', 'Data Siswa')
 
 @section('styles')
-    <link rel="stylesheet" href="{{ asset('css/pages/siswa-index.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/pages/siswa/index.css') }}">
 @endsection
 
 @section('content')
@@ -126,7 +126,7 @@
                             <th>NISN</th>
                             <th>Nama Siswa</th>
                             @if(!$isWaliKelas) <th>Kelas</th> @endif
-                            <th>Kontak Ortu</th>
+                            <th>Kontak Wali Murid</th>
                             <th class="text-center">Aksi</th>
                         </tr>
                     </thead>
@@ -137,17 +137,17 @@
                             <td><code>{{ $s->nisn }}</code></td>
                             <td>
                                 <span class="font-weight-bold text-dark">{{ $s->nama_siswa }}</span>
-                                @if($isWaliKelas && !$s->orangTua)
-                                    <i class="fas fa-exclamation-circle text-danger ml-1" title="Akun Orang Tua belum dihubungkan oleh Operator"></i>
+                                @if($isWaliKelas && !$s->waliMurid)
+                                    <i class="fas fa-exclamation-circle text-danger ml-1" title="Akun Wali Murid belum dihubungkan oleh Operator"></i>
                                 @endif
                             </td>
                             @if(!$isWaliKelas)
                                 <td><span class="badge badge-light border">{{ $s->kelas->nama_kelas }}</span></td>
                             @endif
                             <td>
-                                @if($s->nomor_hp_ortu)
-                                    <a href="https://wa.me/62{{ ltrim($s->nomor_hp_ortu, '0') }}" target="_blank" class="text-success font-weight-bold">
-                                        <i class="fab fa-whatsapp"></i> {{ $s->nomor_hp_ortu }}
+                                @if($s->nomor_hp_wali_murid)
+                                    <a href="https://wa.me/62{{ ltrim($s->nomor_hp_wali_murid, '0') }}" target="_blank" class="text-success font-weight-bold">
+                                        <i class="fab fa-whatsapp"></i> {{ $s->nomor_hp_wali_murid }}
                                     </a>
                                 @else
                                     <span class="text-muted text-sm font-italic">Kosong</span>
@@ -197,3 +197,7 @@
         </div>
     </div>
 @endsection
+
+@push('scripts')
+    <script src="{{ asset('js/pages/siswa/index.js') }}"></script>
+@endpush

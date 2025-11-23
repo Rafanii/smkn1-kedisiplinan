@@ -25,7 +25,7 @@ class RoleSeeder extends Seeder
             ['nama_role' => 'Kaprodi'],
             ['nama_role' => 'Wali Kelas'],
             ['nama_role' => 'Guru'],
-            ['nama_role' => 'Orang Tua'],
+            ['nama_role' => 'Wali Murid'],
         ];
 
         // 5. Masukkan data ke database

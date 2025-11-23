@@ -2,60 +2,11 @@
 
 @section('title', 'Edit User')
 
-@section('content')
-<style>
-    /* Styling untuk area Filter */
-    .filter-box {
-        background-color: #fff3cd; /* Warna kuning tipis (khas Edit) */
-        border: 1px solid #ffeeba;
-        border-radius: 5px;
-        padding: 15px;
-        margin-bottom: 15px;
-    }
-    /* Styling untuk Daftar Siswa (Scrollable) */
-    .student-list-container {
-        max-height: 350px; /* Sedikit lebih tinggi */
-        overflow-y: auto;
-        border: 1px solid #ced4da;
-        background: #fff;
-        border-radius: 4px;
-    }
-    .student-item {
-        padding: 10px 12px;
-        border-bottom: 1px solid #f0f0f0;
-        cursor: pointer;
-        transition: background 0.2s;
-    }
-    .student-item:hover {
-        background-color: #f8f9fa;
-    }
-    .student-item:last-child {
-        border-bottom: none;
-    }
-    
-    /* Styling khusus untuk siswa yang SUDAH terhubung */
-    .student-item.connected {
-        background-color: #d4edda; /* Warna Hijau Muda */
-        border-left: 4px solid #28a745;
-    }
-    .student-item.connected:hover {
-        background-color: #c3e6cb;
-    }
+@section('styles')
+    <link rel="stylesheet" href="{{ asset('css/pages/users/edit.css') }}">
+@endsection
 
-    .student-item label {
-        cursor: pointer;
-        font-weight: normal !important;
-        margin-bottom: 0;
-        width: 100%;
-        display: flex;
-        align-items: center;
-    }
-    /* Checkbox custom size */
-    .student-checkbox {
-        transform: scale(1.2);
-        margin-right: 15px;
-    }
-</style>
+@section('content')
 
 <div class="container-fluid">
     <div class="card card-warning">
@@ -125,11 +76,11 @@
 
                 <hr>
 
-                <!-- BAGIAN 2: HUBUNGKAN SISWA (KHUSUS ORANG TUA) -->
+                <!-- BAGIAN 2: HUBUNGKAN SISWA (KHUSUS WALI MURID) -->
                 <div id="siswaSection" style="display: none;">
                     <div class="card border-warning">
                         <div class="card-header bg-warning text-dark py-2">
-                            <h3 class="card-title" style="font-size: 1rem;"><i class="fas fa-child mr-1"></i> Hubungkan Orang Tua dengan Siswa</h3>
+                            <h3 class="card-title" style="font-size: 1rem;"><i class="fas fa-child mr-1"></i> Hubungkan Wali Murid dengan Siswa</h3>
                         </div>
                         <div class="card-body bg-light">
                             
@@ -239,7 +190,7 @@
                         </div>
                     </div>
                 </div>
-                <!-- END AREA ORANG TUA -->
+                <!-- END AREA WALI MURID -->
 
             </div>
 
@@ -253,82 +204,5 @@
 @endsection
 
 @push('scripts')
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script>
-    $(document).ready(function() {
-        // 1. Logika Tampilkan/Sembunyikan Section Orang Tua
-        $('#roleSelect').on('change', function() {
-            var text = $(this).find("option:selected").text();
-            if(text.includes('Orang Tua')) {
-                $('#siswaSection').slideDown();
-            } else {
-                $('#siswaSection').slideUp();
-            }
-        }).trigger('change');
-
-        // 2. LOGIKA FILTERING REAL-TIME
-        function filterList() {
-            var fTingkat = $('#filterTingkat').val();
-            var fJurusan = $('#filterJurusan').val();
-            var fKelas = $('#filterKelas').val();
-            var fSearch = $('#searchSiswa').val().toLowerCase();
-
-            var visibleCount = 0;
-
-            $('.student-item').each(function() {
-                var item = $(this);
-                var sTingkat = item.data('tingkat');
-                var sJurusan = item.data('jurusan');
-                var sKelas = item.data('kelas');
-                var sSearch = item.data('search');
-
-                var match = true;
-
-                if(fTingkat && sTingkat != fTingkat) match = false;
-                if(fJurusan && sJurusan != fJurusan) match = false;
-                if(fKelas && sKelas != fKelas) match = false;
-                if(fSearch && !sSearch.includes(fSearch)) match = false;
-
-                if(match) {
-                    item.show();
-                    visibleCount++;
-                } else {
-                    item.hide();
-                }
-            });
-
-            if(visibleCount === 0) {
-                $('#noResultMsg').show();
-            } else {
-                $('#noResultMsg').hide();
-            }
-        }
-
-        $('#filterTingkat, #filterJurusan, #filterKelas').on('change', filterList);
-        $('#searchSiswa').on('keyup', filterList);
-
-        // 3. Helper: Filter Dropdown Kelas berdasarkan Jurusan
-        $('#filterJurusan').on('change', function() {
-            var jurId = $(this).val();
-            $('#filterKelas option').each(function() {
-                var kJur = $(this).data('jurusan');
-                if($(this).val() == "" || !jurId || kJur == jurId) {
-                    $(this).show();
-                } else {
-                    $(this).hide();
-                }
-            });
-            $('#filterKelas').val('');
-            filterList();
-        });
-    });
-
-    function resetFilters() {
-        $('#filterTingkat').val('');
-        $('#filterJurusan').val('');
-        $('#filterKelas').val('');
-        $('#searchSiswa').val('');
-        $('#filterJurusan').trigger('change');
-    }
-</script>
+    <script src="{{ asset('js/pages/users/edit.js') }}"></script>
 @endpush

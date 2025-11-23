@@ -17,7 +17,6 @@ class SiswaController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        $role = $user->role->nama_role;
 
         $allJurusan = Jurusan::all();
         $allKelas = Kelas::orderBy('nama_kelas')->get();
@@ -25,7 +24,7 @@ class SiswaController extends Controller
         $query = Siswa::with('kelas.jurusan');
 
         // --- LOGIKA DATA SCOPING ---
-        if ($role == 'Wali Kelas') {
+        if ($user->hasRole('Wali Kelas')) {
             $kelasBinaan = $user->kelasDiampu;
             if ($kelasBinaan) {
                 $query->where('kelas_id', $kelasBinaan->id);
@@ -33,7 +32,7 @@ class SiswaController extends Controller
                 $query->where('id', 0); 
             }
         }
-        elseif ($role == 'Kaprodi') {
+        elseif ($user->hasRole('Kaprodi')) {
             $jurusanBinaan = $user->jurusanDiampu;
             if ($jurusanBinaan) {
                 $query->whereHas('kelas', function($q) use ($jurusanBinaan) {
@@ -52,11 +51,11 @@ class SiswaController extends Controller
             });
         }
 
-        if ($role != 'Wali Kelas' && $request->filled('kelas_id')) {
+        if (!$user->hasRole('Wali Kelas') && $request->filled('kelas_id')) {
             $query->where('kelas_id', $request->kelas_id);
         }
 
-        if (!in_array($role, ['Wali Kelas', 'Kaprodi']) && $request->filled('jurusan_id')) {
+        if (!$user->hasAnyRole(['Wali Kelas', 'Kaprodi']) && $request->filled('jurusan_id')) {
              $query->whereHas('kelas', function($q) use ($request) {
                 $q->where('jurusan_id', $request->jurusan_id);
             });
@@ -81,12 +80,12 @@ class SiswaController extends Controller
     {
         $kelas = Kelas::orderBy('nama_kelas')->get();
         
-        // [UPDATE] Ambil daftar user dengan role 'Orang Tua' untuk dropdown
-        $orangTua = User::whereHas('role', function($q){
-            $q->where('nama_role', 'Orang Tua');
+        // [UPDATE] Ambil daftar user dengan role 'Wali Murid' untuk dropdown
+        $waliMurid = User::whereHas('role', function($q){
+            $q->where('nama_role', 'Wali Murid');
         })->orderBy('nama')->get();
 
-        return view('siswa.create', compact('kelas', 'orangTua'));
+        return view('siswa.create', compact('kelas', 'waliMurid'));
     }
 
     /**
@@ -98,9 +97,9 @@ class SiswaController extends Controller
             'nisn' => 'required|numeric|unique:siswa,nisn',
             'nama_siswa' => 'required|string|max:255',
             'kelas_id' => 'required|exists:kelas,id',
-            'nomor_hp_ortu' => 'nullable|numeric',
-            // [UPDATE] Validasi opsional untuk orang tua
-            'orang_tua_user_id' => 'nullable|exists:users,id',
+            'nomor_hp_wali_murid' => 'nullable|numeric',
+            // [UPDATE] Validasi opsional untuk wali murid
+            'wali_murid_user_id' => 'nullable|exists:users,id',
         ]);
 
         Siswa::create($request->all());
@@ -115,11 +114,11 @@ class SiswaController extends Controller
     {
         $kelas = Kelas::orderBy('nama_kelas')->get();
         
-        $orangTua = User::whereHas('role', function($q){
-            $q->where('nama_role', 'Orang Tua');
+        $waliMurid = User::whereHas('role', function($q){
+            $q->where('nama_role', 'Wali Murid');
         })->orderBy('nama')->get();
 
-        return view('siswa.edit', compact('siswa', 'kelas', 'orangTua'));
+        return view('siswa.edit', compact('siswa', 'kelas', 'waliMurid'));
     }
 
     /**
@@ -127,16 +126,21 @@ class SiswaController extends Controller
      */
     public function update(Request $request, Siswa $siswa)
     {
-        $role = Auth::user()->role->nama_role;
+        $user = Auth::user();
 
         // Jika Wali Kelas, Validasi lebih longgar (Cuma HP)
-        if ($role == 'Wali Kelas') {
+            if ($user->hasRole('Wali Kelas')) {
+            // Pastikan Wali Kelas hanya dapat mengubah siswa di kelas yang dia ampuh
+            $kelasBinaan = Auth::user()->kelasDiampu;
+            if (!$kelasBinaan || $siswa->kelas_id !== $kelasBinaan->id) {
+                abort(403, 'AKSES DITOLAK: Anda hanya dapat memperbarui data siswa di kelas yang Anda ampu.');
+            }
             $request->validate([
-                'nomor_hp_ortu' => 'nullable|numeric',
+                'nomor_hp_wali_murid' => 'nullable|numeric',
             ]);
-            
+
             $siswa->update([
-                'nomor_hp_ortu' => $request->nomor_hp_ortu
+                'nomor_hp_wali_murid' => $request->nomor_hp_wali_murid
             ]);
         } 
         // Jika Operator, Validasi Ketat
@@ -145,11 +149,20 @@ class SiswaController extends Controller
                 'nisn' => 'required|numeric|unique:siswa,nisn,' . $siswa->id,
                 'nama_siswa' => 'required|string|max:255',
                 'kelas_id' => 'required|exists:kelas,id',
-                'nomor_hp_ortu' => 'nullable|numeric',
-                'orang_tua_user_id' => 'nullable|exists:users,id',
+                'nomor_hp_wali_murid' => 'nullable|numeric',
+                'wali_murid_user_id' => 'nullable|exists:users,id',
             ]);
-            
-            $siswa->update($request->all());
+
+            // Map incoming request keys if older forms still submit old names
+            $data = $request->all();
+            if ($request->filled('orang_tua_user_id') && !$request->filled('wali_murid_user_id')) {
+                $data['wali_murid_user_id'] = $request->input('orang_tua_user_id');
+            }
+            if ($request->filled('nomor_hp_ortu') && !$request->filled('nomor_hp_wali_murid')) {
+                $data['nomor_hp_wali_murid'] = $request->input('nomor_hp_ortu');
+            }
+
+            $siswa->update($data);
         }
 
         return redirect()->route('siswa.index')->with('success', 'Data siswa berhasil diperbarui.');

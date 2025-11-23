@@ -21,8 +21,8 @@ class SiswaFactory extends Factory
             // Generate NISN acak 10 digit
             'nisn' => $this->faker->unique()->numerify('##########'),
             'nama_siswa' => $this->faker->name(), // Nama Indonesia acak
-            'nomor_hp_ortu' => $this->faker->phoneNumber(),
-            // kelas_id dan orang_tua_user_id akan kita isi manual saat dipanggil di Seeder
+            'nomor_hp_wali_murid' => $this->faker->phoneNumber(),
+            // kelas_id dan wali_murid_user_id akan kita isi manual saat dipanggil di Seeder
         ];
     }
 }

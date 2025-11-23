@@ -3,9 +3,8 @@
 @section('title', 'Edit Data Siswa')
 
 @section('styles')
-    <!-- Load CSS Eksternal -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" />
-    <link rel="stylesheet" href="{{ asset('css/pages/siswa-edit.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/pages/siswa/edit.css') }}">
 @endsection
 
 @section('content')
@@ -56,7 +55,7 @@
                                 <div class="mr-3"><i class="fas fa-info-circle fa-2x"></i></div>
                                 <div>
                                     <strong>Info Akses:</strong><br>
-                                    Sebagai Wali Kelas, Anda hanya diizinkan mengubah <u>Nomor HP Orang Tua</u>. 
+                                    Sebagai Wali Kelas, Anda hanya diizinkan mengubah <u>Nomor HP Wali Murid</u>. 
                                     Untuk perbaikan Nama atau NISN, silakan hubungi Operator Sekolah.
                                 </div>
                             </div>
@@ -122,27 +121,27 @@
 
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label class="form-label text-primary">Nomor HP Orang Tua (WA)</label>
+                                    <label class="form-label text-primary">Nomor HP Wali Murid (WA)</label>
                                     <div class="input-group">
                                         <div class="input-group-prepend">
                                             <span class="input-group-text bg-white border-primary text-success"><i class="fab fa-whatsapp"></i></span>
                                         </div>
-                                        <input type="text" name="nomor_hp_ortu" class="form-control form-control-clean border-primary" 
-                                               value="{{ $siswa->nomor_hp_ortu }}" placeholder="Contoh: 081234567890">
+                                             <input type="text" name="nomor_hp_wali_murid" class="form-control form-control-clean border-primary" 
+                                                 value="{{ $siswa->nomor_hp_wali_murid }}" placeholder="Contoh: 081234567890">
                                     </div>
                                     <small class="text-muted font-italic">Pastikan nomor aktif (WhatsApp).</small>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- AKUN ORANG TUA (KHUSUS OPERATOR) -->
+                        <!-- AKUN WALI MURID (KHUSUS OPERATOR) -->
                         @if(!$isWaliKelas)
                         <div class="form-group mt-3">
                             <label class="form-label text-muted">Akun Login Wali Murid</label>
-                            <select name="orang_tua_user_id" class="form-control select2" data-placeholder="-- Pilih Akun --">
+                            <select name="wali_murid_user_id" class="form-control select2" data-placeholder="-- Pilih Akun --">
                                 <option value=""></option>
-                                @foreach($orangTua as $ortu)
-                                    <option value="{{ $ortu->id }}" {{ $siswa->orang_tua_user_id == $ortu->id ? 'selected' : '' }}>
+                                @foreach($waliMurid as $ortu)
+                                    <option value="{{ $ortu->id }}" {{ $siswa->wali_murid_user_id == $ortu->id ? 'selected' : '' }}>
                                         {{ $ortu->nama }} ({{ $ortu->username }})
                                     </option>
                                 @endforeach
@@ -169,6 +168,5 @@
 @push('scripts')
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-    <!-- Load Logic Eksternal -->
-    <script src="{{ asset('js/pages/siswa-edit.js') }}"></script>
+    <script src="{{ asset('js/pages/siswa/edit.js') }}"></script>
 @endpush

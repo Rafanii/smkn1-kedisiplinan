@@ -2,48 +2,11 @@
 
 @section('title', 'Tambah User Baru')
 
+@section('styles')
+    <link rel="stylesheet" href="{{ asset('css/pages/users/create.css') }}">
+@endsection
+
 @section('content')
-<style>
-    /* Styling untuk area Filter */
-    .filter-box {
-        background-color: #f4f6f9;
-        border: 1px solid #ced4da;
-        border-radius: 5px;
-        padding: 15px;
-        margin-bottom: 15px;
-    }
-    /* Styling untuk Daftar Siswa (Scrollable) */
-    .student-list-container {
-        max-height: 300px; /* Tinggi maksimal list */
-        overflow-y: auto;  /* Scroll jika data banyak */
-        border: 1px solid #ced4da;
-        background: #fff;
-        border-radius: 4px;
-    }
-    .student-item {
-        padding: 8px 12px;
-        border-bottom: 1px solid #f0f0f0;
-        cursor: pointer;
-        transition: background 0.2s;
-    }
-    .student-item:hover {
-        background-color: #e8f4ff;
-    }
-    .student-item:last-child {
-        border-bottom: none;
-    }
-    .student-item label {
-        cursor: pointer;
-        font-weight: normal !important;
-        margin-bottom: 0;
-        width: 100%;
-    }
-    /* Checkbox custom size */
-    .student-checkbox {
-        transform: scale(1.2);
-        margin-right: 10px;
-    }
-</style>
 
 <div class="container-fluid">
     <div class="row">
@@ -107,7 +70,7 @@
                         <hr>
 
                         <!-- ========================================== -->
-                        <!-- AREA KHUSUS ORANG TUA (KONSEP BARU)        -->
+                        <!-- AREA KHUSUS WALI MURID (KONSEP BARU)        -->
                         <!-- ========================================== -->
                         <div id="siswaSection" style="display: none;">
                             <div class="card border-primary">
@@ -201,7 +164,7 @@
                                 </div>
                             </div>
                         </div>
-                        <!-- END AREA ORANG TUA -->
+                        <!-- END AREA WALI MURID -->
 
                     </div>
 
@@ -217,92 +180,5 @@
 @endsection
 
 @push('scripts')
-<script>
-    $(document).ready(function() {
-        // 1. Logika Tampilkan/Sembunyikan Section Orang Tua
-        $('#roleSelect').on('change', function() {
-            var text = $(this).find("option:selected").text();
-            if(text.includes('Orang Tua')) {
-                $('#siswaSection').slideDown();
-            } else {
-                $('#siswaSection').slideUp();
-                // Opsional: Uncheck semua jika bukan orang tua
-                // $('.student-checkbox').prop('checked', false);
-            }
-        }).trigger('change');
-
-        // 2. LOGIKA FILTERING REAL-TIME
-        function filterList() {
-            var fTingkat = $('#filterTingkat').val();
-            var fJurusan = $('#filterJurusan').val();
-            var fKelas = $('#filterKelas').val();
-            var fSearch = $('#searchSiswa').val().toLowerCase();
-
-            var visibleCount = 0;
-
-            // Loop setiap item siswa
-            $('.student-item').each(function() {
-                var item = $(this);
-                var sTingkat = item.data('tingkat');
-                var sJurusan = item.data('jurusan');
-                var sKelas = item.data('kelas');
-                var sSearch = item.data('search');
-
-                var match = true;
-
-                // Cek Filter Dropdown
-                if(fTingkat && sTingkat != fTingkat) match = false;
-                if(fJurusan && sJurusan != fJurusan) match = false;
-                if(fKelas && sKelas != fKelas) match = false;
-
-                // Cek Pencarian Teks (Nama/NISN)
-                if(fSearch && !sSearch.includes(fSearch)) match = false;
-
-                // Tampilkan/Sembunyikan
-                if(match) {
-                    item.show();
-                    visibleCount++;
-                } else {
-                    item.hide();
-                }
-            });
-
-            // Tampilkan pesan jika kosong
-            if(visibleCount === 0) {
-                $('#noResultMsg').show();
-            } else {
-                $('#noResultMsg').hide();
-            }
-        }
-
-        // Pasang Event Listener ke semua input filter
-        $('#filterTingkat, #filterJurusan, #filterKelas').on('change', filterList);
-        $('#searchSiswa').on('keyup', filterList);
-
-        // 3. Helper: Filter Dropdown Kelas berdasarkan Jurusan
-        $('#filterJurusan').on('change', function() {
-            var jurId = $(this).val();
-            $('#filterKelas option').each(function() {
-                var kJur = $(this).data('jurusan');
-                if($(this).val() == "" || !jurId || kJur == jurId) {
-                    $(this).show();
-                } else {
-                    $(this).hide();
-                }
-            });
-            $('#filterKelas').val(''); // Reset kelas saat jurusan berubah
-            filterList(); // Jalankan filter ulang
-        });
-    });
-
-    // Fungsi Reset
-    function resetFilters() {
-        $('#filterTingkat').val('');
-        $('#filterJurusan').val('');
-        $('#filterKelas').val('');
-        $('#searchSiswa').val('');
-        // Trigger change agar list ter-refresh
-        $('#filterJurusan').trigger('change');
-    }
-</script>
+    <script src="{{ asset('js/pages/users/create.js') }}"></script>
 @endpush

@@ -53,6 +53,12 @@ class PelanggaranController extends Controller
             'bukti_foto' => 'required|image|mimes:jpeg,png,jpg|max:2048',
             'keterangan' => 'nullable|string',
         ]);
+        // Defensive check: ensure current user role is allowed to record violations
+        $user = Auth::user();
+        $siswa = Siswa::find($request->siswa_id);
+        if (!$user->canRecordFor($siswa)) {
+            abort(403, 'AKSES DITOLAK: Anda tidak memiliki izin untuk mencatat pelanggaran.');
+        }
 
         return DB::transaction(function () use ($request) {
             $pathFoto = $request->file('bukti_foto')->store('bukti_pelanggaran', 'public');
@@ -106,7 +112,7 @@ class PelanggaranController extends Controller
          }
 
          if ($tipeSurat) {
-            $sanksi = "Pemanggilan Orang Tua ($tipeSurat)";
+            $sanksi = "Pemanggilan Wali Murid ($tipeSurat)";
             $kasusAktif = TindakLanjut::with('suratPanggilan')->where('siswa_id', $siswaId)
                 ->whereIn('status', ['Baru', 'Menunggu Persetujuan', 'Disetujui', 'Ditangani'])->latest()->first();
 
@@ -114,7 +120,8 @@ class PelanggaranController extends Controller
                 $tl = TindakLanjut::create(['siswa_id' => $siswaId, 'pemicu' => $pemicu, 'sanksi_deskripsi' => $sanksi, 'status' => $status]);
                 $tl->suratPanggilan()->create(['nomor_surat' => 'DRAFT/'.rand(100,999), 'tipe_surat' => $tipeSurat, 'tanggal_surat' => now()]);
             } else {
-                 $levelLama = (int) filter_var($kasusAktif->suratPanggilan->tipe_surat ?? '0', FILTER_SANITIZE_NUMBER_INT);
+                 $existingTipe = $kasusAktif->suratPanggilan?->tipe_surat ?? '0';
+                 $levelLama = (int) filter_var($existingTipe, FILTER_SANITIZE_NUMBER_INT);
                  $levelBaru = (int) filter_var($tipeSurat, FILTER_SANITIZE_NUMBER_INT);
                  if ($levelBaru > $levelLama) {
                      $kasusAktif->update(['pemicu' => $pemicu . " (Eskalasi)", 'sanksi_deskripsi' => $sanksi, 'status' => $status]);

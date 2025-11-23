@@ -22,18 +22,18 @@ class SiswaSeeder extends Seeder
         DB::table('siswa')->truncate();
 
         // 2. Ambil data induk (role Ortu dan kelas)
-        $roleOrtu = Role::where('nama_role', 'Orang Tua')->first();
+        $roleOrtu = Role::where('nama_role', 'Wali Murid')->first();
         $kelasATP = Kelas::where('nama_kelas', 'XII ATP 1')->first();
 
         // 3. Pastikan data induk ada
         if ($roleOrtu && $kelasATP) {
             
-            // 4. Buat 1 User Orang Tua (untuk Budi)
-            $orangTuaBudi = User::updateOrCreate(
-                ['username' => 'ortu.budi'], // Cari berdasarkan username
+            // 4. Buat 1 User Wali Murid (untuk Budi)
+            $waliMuridBudi = User::updateOrCreate(
+                ['username' => 'ortu.budi'], // Username legacy kept for compatibility
                 [
                     'role_id' => $roleOrtu->id,
-                    'nama' => 'Orang Tua Budi',
+                    'nama' => 'Wali Murid Budi',
                     'email' => 'ortu.budi@example.com',
                     'password' => Hash::make('password'),
                     'email_verified_at' => now(),
@@ -43,19 +43,19 @@ class SiswaSeeder extends Seeder
             // 5. Buat 1 Siswa (Budi)
             Siswa::create([
                 'kelas_id' => $kelasATP->id,
-                'orang_tua_user_id' => $orangTuaBudi->id, // Hubungkan ke ortu
+                'wali_murid_user_id' => $waliMuridBudi->id, // Hubungkan ke wali murid
                 'nisn' => '123456789', // NISN Contoh
                 'nama_siswa' => 'Budi Santoso',
-                'nomor_hp_ortu' => '08123456789' // No HP Ortu (untuk WA)
+                'nomor_hp_wali_murid' => '08123456789' // No HP Wali Murid (untuk WA)
             ]);
 
-            // 6. Buat 1 Siswa lain (tanpa user ortu, untuk tes)
+            // 6. Buat 1 Siswa lain (tanpa user wali murid, untuk tes)
             Siswa::create([
                 'kelas_id' => $kelasATP->id,
-                'orang_tua_user_id' => null, // Tes jika ortu belum ada user
+                'wali_murid_user_id' => null, // Tes jika wali murid belum ada user
                 'nisn' => '987654321', // NISN Contoh
                 'nama_siswa' => 'Ani Lestari',
-                'nomor_hp_ortu' => '08987654321'
+                'nomor_hp_wali_murid' => '08987654321'
             ]);
         }
     }

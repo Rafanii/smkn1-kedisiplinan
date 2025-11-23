@@ -3,8 +3,7 @@
 @section('title', 'Catat Pelanggaran')
 
 @section('styles')
-    <!-- Panggil CSS Eksternal -->
-    <link rel="stylesheet" href="{{ asset('css/pages/pelanggaran-create.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/pages/pelanggaran/create.css') }}">
 @endsection
 
 @section('content')
@@ -234,8 +233,6 @@
 
 @push('scripts')
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <!-- bs-custom-file-input untuk nama file upload agar muncul -->
     <script src="https://cdn.jsdelivr.net/npm/bs-custom-file-input/dist/bs-custom-file-input.min.js"></script>
-    <!-- Panggil File JS Eksternal -->
-    <script src="{{ asset('js/pages/pelanggaran-create.js') }}"></script>
+    <script src="{{ asset('js/pages/pelanggaran/create.js') }}"></script>
 @endpush

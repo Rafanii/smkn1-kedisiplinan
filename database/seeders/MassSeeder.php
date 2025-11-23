@@ -19,7 +19,7 @@ class MassSeeder extends Seeder
     {
         // 1. Ambil ID Role yang dibutuhkan
         $roleWali = Role::where('nama_role', 'Wali Kelas')->first()->id;
-        $roleOrtu = Role::where('nama_role', 'Orang Tua')->first()->id;
+        $roleOrtu = Role::where('nama_role', 'Wali Murid')->first()->id;
 
         // 2. Ambil semua Jurusan yang sudah dibuat di JurusanSeeder
         $jurusanList = Jurusan::all();
@@ -62,18 +62,18 @@ class MassSeeder extends Seeder
                 // --- C. BUAT 20 SISWA PER KELAS ---
                 for ($i = 1; $i <= 20; $i++) {
                     
-                    // 1. Buat Akun Orang Tua untuk siswa ini
+                    // 1. Buat Akun Wali Murid untuk siswa ini
                     $ortuUser = User::factory()->create([
                         'role_id' => $roleOrtu,
-                        'nama' => 'Ortu Siswa ' . $kelas->nama_kelas . ' ' . $i,
-                        'username' => 'ortu.' . strtolower($kodeJurusan) . '.' . $kelas->id . '.' . $i, // unik
+                        'nama' => 'Wali Murid Siswa ' . $kelas->nama_kelas . ' ' . $i,
+                        'username' => 'ortu.' . strtolower($kodeJurusan) . '.' . $kelas->id . '.' . $i, // unik (username prefix tetap 'ortu.' untuk backward compatibility)
                         'password' => Hash::make('password'),
                     ]);
 
                     // 2. Buat Siswa (Pakai Factory)
                     Siswa::factory()->create([
                         'kelas_id' => $kelas->id,
-                        'orang_tua_user_id' => $ortuUser->id,
+                        'wali_murid_user_id' => $ortuUser->id,
                     ]);
                 }
             }

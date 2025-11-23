@@ -99,7 +99,7 @@
                 <span class="badge bg-purple">Baru</span>
                 <i class="fas fa-user-plus text-purple" style="font-size: 2rem; float: right;"></i>
                 <strong>Tambah User</strong><br>
-                Daftarkan Guru/Ortu baru
+                Daftarkan Guru/Wali Murid baru
             </a>
         </div>
         

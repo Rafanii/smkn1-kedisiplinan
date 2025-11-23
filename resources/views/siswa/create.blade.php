@@ -3,9 +3,7 @@
 @section('title', 'Tambah Siswa')
 
 @section('styles')
-    <!-- Load CSS Eksternal -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" />
-    <link rel="stylesheet" href="{{ asset('css/pages/siswa-create.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/pages/siswa/create.css') }}">
 @endsection
 
 @section('content')
@@ -74,9 +72,8 @@
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label class="form-label text-muted">Kelas <span class="text-danger">*</span></label>
-                                    <!-- data-placeholder spesifik untuk Kelas -->
-                                    <select name="kelas_id" class="form-control select2 @error('kelas_id') is-invalid @enderror" required data-placeholder="-- Pilih Kelas --">
-                                        <option value=""></option> <!-- Placeholder kosong -->
+                                    <select name="kelas_id" class="form-control form-control-clean @error('kelas_id') is-invalid @enderror" required>
+                                        <option value="">-- Pilih Kelas --</option>
                                         @foreach($kelas as $k)
                                             <option value="{{ $k->id }}" {{ old('kelas_id') == $k->id ? 'selected' : '' }}>
                                                 {{ $k->nama_kelas }}
@@ -94,23 +91,22 @@
                                         <div class="input-group-prepend">
                                             <span class="input-group-text bg-white border-primary text-success"><i class="fab fa-whatsapp"></i></span>
                                         </div>
-                                        <input type="text" name="nomor_hp_ortu" class="form-control form-control-clean border-primary" 
-                                               placeholder="Contoh: 081234567890" value="{{ old('nomor_hp_ortu') }}">
+                                             <input type="text" name="nomor_hp_wali_murid" class="form-control form-control-clean border-primary" 
+                                                 placeholder="Contoh: 081234567890" value="{{ old('nomor_hp_wali_murid') }}">
                                     </div>
                                     <small class="text-muted font-italic">Wajib diisi untuk fitur notifikasi otomatis.</small>
-                                    @error('nomor_hp_ortu') <span class="text-danger small mt-1 d-block">{{ $message }}</span> @enderror
+                                    @error('nomor_hp_wali_murid') <span class="text-danger small mt-1 d-block">{{ $message }}</span> @enderror
                                 </div>
                             </div>
                         </div>
 
                         <div class="form-group mt-3">
                             <label class="form-label text-muted">Akun Login Wali Murid (Opsional)</label>
-                            
-                            <!-- data-placeholder spesifik untuk Wali Murid -->
-                            <select name="orang_tua_user_id" class="form-control select2" data-placeholder="-- Cari Nama Wali Murid --">
-                                <option value=""></option> <!-- Placeholder kosong -->
-                                @foreach($orangTua as $ortu)
-                                    <option value="{{ $ortu->id }}" {{ old('orang_tua_user_id') == $ortu->id ? 'selected' : '' }}>
+
+                            <select name="wali_murid_user_id" class="form-control form-control-clean @error('wali_murid_user_id') is-invalid @enderror">
+                                <option value="">-- Cari Nama Wali Murid --</option>
+                                @foreach($waliMurid as $ortu)
+                                    <option value="{{ $ortu->id }}" {{ old('wali_murid_user_id') == $ortu->id ? 'selected' : '' }}>
                                         {{ $ortu->nama }} ({{ $ortu->username }})
                                     </option>
                                 @endforeach
@@ -119,6 +115,7 @@
                             <small class="text-muted font-italic">
                                 <i class="fas fa-info-circle"></i> Pilih jika akun Wali Murid sudah dibuat sebelumnya di menu Manajemen User.
                             </small>
+                            @error('wali_murid_user_id') <span class="text-danger small mt-1 d-block">{{ $message }}</span> @enderror
                         </div>
 
                     </div>
@@ -137,8 +134,5 @@
 @endsection
 
 @push('scripts')
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-    <!-- Load Logic Eksternal -->
-    <script src="{{ asset('js/pages/siswa-create.js') }}"></script>
+    <script src="{{ asset('js/pages/siswa/create.js') }}"></script>
 @endpush

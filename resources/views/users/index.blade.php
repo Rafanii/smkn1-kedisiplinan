@@ -2,6 +2,10 @@
 
 @section('title', 'Manajemen Pengguna')
 
+@section('styles')
+    <link rel="stylesheet" href="{{ asset('css/pages/users/index.css') }}">
+@endsection
+
 @section('content')
 
     <!-- HEADER & TOMBOL TAMBAH -->
@@ -144,8 +148,8 @@
                                 <span class="badge badge-danger">Kepsek</span>
                             @elseif($u->role->nama_role == 'Wali Kelas')
                                 <span class="badge badge-warning">Wali Kelas</span>
-                            @elseif($u->role->nama_role == 'Orang Tua')
-                                <span class="badge badge-success" style="background-color: #28a745;">Orang Tua</span>
+                            @elseif($u->role->nama_role == 'Wali Murid')
+                                <span class="badge badge-success" style="background-color: #28a745;">Wali Murid</span>
                             @elseif($u->role->nama_role == 'Guru')
                                 <span class="badge badge-secondary">Guru</span>
                             @else
@@ -198,3 +202,7 @@
     </div>
 
 @endsection
+
+@push('scripts')
+    <script src="{{ asset('js/pages/users/index.js') }}"></script>
+@endpush

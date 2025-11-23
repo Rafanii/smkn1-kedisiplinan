@@ -103,7 +103,7 @@
                     elseif($role == 'Kepala Sekolah') $dashboardRoute = route('dashboard.kepsek');
                     elseif($role == 'Wali Kelas') $dashboardRoute = route('dashboard.walikelas');
                     elseif($role == 'Kaprodi') $dashboardRoute = route('dashboard.kaprodi');
-                    elseif($role == 'Orang Tua') $dashboardRoute = route('dashboard.ortu');
+                    elseif($role == 'Wali Murid') $dashboardRoute = route('dashboard.wali_murid');
                 @endphp
                 <a href="{{ $dashboardRoute }}" class="nav-link {{ Request::is('dashboard*') ? 'active' : '' }}">
                     <i class="nav-icon fas fa-tachometer-alt"></i>
@@ -224,6 +224,10 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Global Component Libraries (Non-module) -->
+<script src="{{ asset('js/components/stickyFilter.js') }}"></script>
+<script src="{{ asset('js/utils/search.js') }}"></script>
 
 @stack('scripts')
 

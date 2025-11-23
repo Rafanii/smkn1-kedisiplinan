@@ -19,19 +19,21 @@ class CheckRole
     {
         // 1. Cek apakah user login
         if (!Auth::check()) {
-            return redirect('login');
+            return redirect()->route('login');
         }
 
-        // 2. Ambil role user saat ini
-        $userRole = Auth::user()->role->nama_role;
+        $user = Auth::user();
 
-        // 3. Cek apakah role user ada di dalam daftar yang diizinkan
-        // Contoh penggunaan di route: middleware('role:Kepala Sekolah,Waka Kesiswaan')
-        if (in_array($userRole, $roles)) {
-            return $next($request); // Silakan lewat
+        // Jika user belum punya role terkait, tolak akses
+        if (!$user->role) {
+            abort(403, 'AKSES DITOLAK: Role user belum terdefinisi.');
         }
 
-        // 4. Jika tidak cocok, tendang balik (Abort 403 Forbidden)
+        // Gunakan helper di model User agar logika role terpusat
+        if ($user->hasRole($roles)) {
+            return $next($request);
+        }
+
         abort(403, 'AKSES DITOLAK: Anda tidak memiliki izin untuk mengakses halaman ini.');
     }
 }   

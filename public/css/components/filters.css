@@ -1,0 +1,101 @@
+/* ============================================
+   FILTER COMPONENTS - Reusable Filter Styles
+   ============================================ */
+
+/* Sticky Filter Container */
+#stickyFilter {
+    position: -webkit-sticky;
+    position: sticky;
+    top: 57px;
+    z-index: 1040;
+    transition: all 0.3s ease;
+    margin-bottom: 20px;
+}
+
+#stickyFilter.compact-mode {
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    margin-left: -7.5px;
+    margin-right: -7.5px;
+    border-top: none;
+}
+
+/* Sticky Filter Header */
+#filterHeader {
+    transition: all 0.3s ease;
+    overflow: hidden;
+    max-height: 100px;
+    opacity: 1;
+}
+
+.header-hidden #filterHeader {
+    max-height: 0;
+    opacity: 0;
+    padding: 0 !important;
+    border: none;
+}
+
+.header-hidden .card-body {
+    padding: 10px !important;
+    background-color: #ffffff !important;
+}
+
+/* Filter Tabs / Pills */
+.filter-pills .btn {
+    border-radius: 50px;
+    font-size: 0.85rem;
+    padding: 5px 15px;
+    margin-right: 5px;
+    margin-bottom: 5px;
+    border: 1px solid #dee2e6;
+    background-color: #fff;
+    color: #6c757d;
+    transition: all 0.2s ease;
+}
+
+.filter-pills .btn:hover {
+    background-color: #f8f9fa;
+    border-color: #adb5bd;
+}
+
+.filter-pills .btn.active {
+    background-color: #343a40;
+    color: #fff;
+    border-color: #343a40;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+}
+
+/* Search Input */
+.filter-search-input {
+    border-radius: 4px;
+    border: 1px solid #ced4da;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.filter-search-input:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.15);
+}
+
+/* No Results Message */
+#noResultMsg,
+#noViolationMsg {
+    display: none;
+}
+
+/* Filter Label */
+.filter-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #adb5bd;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+    display: block;
+}
+
+/* Responsive Filter Container */
+.content-wrapper {
+    overflow: visible !important;
+}

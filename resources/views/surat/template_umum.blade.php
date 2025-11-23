@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Surat Panggilan Orang Tua</title>
+    <title>Surat Panggilan Wali Murid</title>
     <style>
         body { font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5; }
         .header { text-align: center; border-bottom: 3px double black; padding-bottom: 10px; margin-bottom: 20px; }
@@ -51,7 +51,7 @@
 
     <div class="meta" style="margin-top: 20px;">
         Kepada Yth,<br>
-        Bapak/Ibu Orang Tua/Wali dari <strong>{{ $siswa->nama_siswa }}</strong><br>
+            Bapak/Ibu Wali Murid dari <strong>{{ $siswa->nama_siswa }}</strong><br>
         di Tempat
     </div>
 

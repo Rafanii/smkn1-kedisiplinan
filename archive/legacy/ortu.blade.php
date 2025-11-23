@@ -29,6 +29,8 @@
     </div>
     
     <div class="col-md-9">
+        {{-- DEPRECATED: replaced by dashboards.wali_murid --}}
+        @include('dashboards.wali_murid')
         
         @if($kasus->isNotEmpty())
         <div class="card card-warning">
