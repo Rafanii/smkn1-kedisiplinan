@@ -13,7 +13,7 @@
             {{-- For Kaprodi: show only Tingkat and Kelas (Kelas already limited in controller to jurusan) --}}
             <div class="col-md-3 mb-2">
                 <label class="filter-label">Tingkat</label>
-                <select name="tingkat" class="form-control form-control-sm form-control-clean filter-select" data-filter="tingkat" onchange="document.getElementById('filterForm').submit()">
+                <select name="tingkat" class="form-control form-control-sm form-control-clean filter-select" data-filter="tingkat" onchange="if(!window.SiswaFilterModule){document.getElementById('filterForm').submit();}">
                     <option value="">- Semua -</option>
                     <option value="X" {{ request('tingkat') == 'X' ? 'selected' : '' }}>Kelas X</option>
                     <option value="XI" {{ request('tingkat') == 'XI' ? 'selected' : '' }}>Kelas XI</option>
@@ -25,7 +25,7 @@
                 {{-- Only show Jurusan filter for non-Kaprodi (operator/waka) --}}
                 <div class="col-md-3 mb-2">
                     <label class="filter-label">Jurusan</label>
-                    <select name="jurusan_id" class="form-control form-control-sm form-control-clean filter-select" data-filter="jurusan" onchange="document.getElementById('filterForm').submit()">
+                    <select name="jurusan_id" class="form-control form-control-sm form-control-clean filter-select" data-filter="jurusan" onchange="if(!window.SiswaFilterModule){document.getElementById('filterForm').submit();}">
                         <option value="">- Semua -</option>
                         @foreach($allJurusan as $j)
                             <option value="{{ $j->id }}" {{ request('jurusan_id') == $j->id ? 'selected' : '' }}>{{ $j->nama_jurusan }}</option>
@@ -36,7 +36,7 @@
 
             <div class="col-md-3 mb-2">
                 <label class="filter-label">Kelas</label>
-                <select name="kelas_id" class="form-control form-control-sm form-control-clean filter-select" data-filter="kelas" onchange="document.getElementById('filterForm').submit()">
+                <select name="kelas_id" class="form-control form-control-sm form-control-clean filter-select" data-filter="kelas" onchange="if(!window.SiswaFilterModule){document.getElementById('filterForm').submit();}">
                     <option value="">- Semua -</option>
                     @foreach($allKelas as $k)
                         <option value="{{ $k->id }}" {{ request('kelas_id') == $k->id ? 'selected' : '' }}>{{ $k->nama_kelas }}</option>
@@ -48,7 +48,7 @@
         <div class="col-md-3 mb-2">
             <label class="filter-label">Cari Siswa</label>
             <div class="input-group input-group-sm">
-                <input type="text" id="liveSearch" name="cari" class="form-control form-control-clean filter-search" placeholder="Ketik Nama atau NISN..." value="{{ request('cari') }}" data-filter="search" oninput="clearTimeout(window._siswaSearchDebounce); window._siswaSearchDebounce=setTimeout(function(){document.getElementById('filterForm').submit();}, 800)">
+                <input type="text" id="liveSearch" name="cari" class="form-control form-control-clean filter-search" placeholder="Ketik Nama atau NISN..." value="{{ request('cari') }}" data-filter="search" oninput="if(!window.SiswaFilterModule){clearTimeout(window._siswaSearchDebounce); window._siswaSearchDebounce=setTimeout(function(){document.getElementById('filterForm').submit();}, 800)}">
                 <div class="input-group-append">
                     <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-search"></i></button>
                 </div>

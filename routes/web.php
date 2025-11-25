@@ -7,6 +7,8 @@ use App\Http\Controllers\Dashboard\KepsekDashboardController;
 use App\Http\Controllers\Dashboard\KaprodiDashboardController;
 use App\Http\Controllers\Dashboard\WaliKelasDashboardController;
 use App\Http\Controllers\Dashboard\WaliMuridDashboardController;
+use App\Http\Controllers\Dashboard\ApprovalController;
+use App\Http\Controllers\Dashboard\ReportController;
 use App\Http\Controllers\PelanggaranController;
 use App\Http\Controllers\SiswaController;
 use App\Http\Controllers\UserController;
@@ -132,5 +134,21 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/siswa/export', [\App\Http\Controllers\AuditController::class, 'export'])->name('siswa.export');
         Route::get('/siswa/confirm-delete', [\App\Http\Controllers\AuditController::class, 'confirmDelete'])->name('siswa.confirm-delete');
         Route::delete('/siswa', [\App\Http\Controllers\AuditController::class, 'destroy'])->name('siswa.destroy');
+    });
+
+    // ====================================================
+    // F. KEPALA SEKOLAH - PERSETUJUAN & VALIDASI KASUS
+    // ====================================================
+    Route::middleware(['role:Kepala Sekolah'])->prefix('kepala-sekolah')->name('kepala-sekolah.')->group(function () {
+        // Approval Module
+        Route::get('/approvals', [ApprovalController::class, 'index'])->name('approvals.index');
+        Route::get('/approvals/{tindakLanjut}', [ApprovalController::class, 'show'])->name('approvals.show');
+        Route::put('/approvals/{tindakLanjut}/process', [ApprovalController::class, 'process'])->name('approvals.process');
+
+        // Reports Module
+        Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+        Route::post('/reports/preview', [ReportController::class, 'preview'])->name('reports.preview');
+        Route::get('/reports/export-csv', [ReportController::class, 'exportCsv'])->name('reports.export-csv');
+        Route::get('/reports/export-pdf', [ReportController::class, 'exportPdf'])->name('reports.export-pdf');
     });
 });

@@ -290,7 +290,21 @@ const SiswaFilterModule = (() => {
     };
 })();
 
+// Expose module to global scope so inline fallbacks can detect it
+if (typeof window !== 'undefined' && !window.SiswaFilterModule) {
+    window.SiswaFilterModule = SiswaFilterModule;
+}
+
 // ========== AUTO INITIALIZATION ==========
 document.addEventListener('DOMContentLoaded', function() {
-    SiswaFilterModule.init();
+    // Defensive: if module already exposed and has init, use it
+    try {
+        if (window.SiswaFilterModule && typeof window.SiswaFilterModule.init === 'function') {
+            window.SiswaFilterModule.init();
+        } else {
+            SiswaFilterModule.init();
+        }
+    } catch (err) {
+        console.error('[SiswaFilter] Init error:', err);
+    }
 });
