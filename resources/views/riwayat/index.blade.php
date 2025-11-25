@@ -5,6 +5,7 @@
 @section('styles')
     <!-- Panggil CSS Eksternal -->
     <link rel="stylesheet" href="{{ asset('css/pages/riwayat/index.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/pages/riwayat/filters.css') }}">
 @endsection
 
 @section('content')
@@ -43,72 +44,7 @@
     <div id="stickyFilter" class="card card-outline card-primary shadow-sm border-0">
         
         <div class="card-body bg-white py-3" style="border-radius: 8px;">
-            <form id="filterForm" action="{{ route('riwayat.index') }}" method="GET">
-                <div class="row align-items-end">
-                    
-                    <!-- Filter Tanggal -->
-                    <div class="col-md-3 mb-2">
-                        <label class="filter-label">Rentang Waktu</label>
-                        <div class="input-group input-group-sm">
-                            <input type="date" name="start_date" value="{{ request('start_date') }}" class="form-control form-control-clean" onchange="this.form.submit()">
-                            <div class="input-group-prepend input-group-append">
-                                <span class="input-group-text border-left-0 border-right-0 bg-white"><i class="fas fa-arrow-right text-muted small"></i></span>
-                            </div>
-                            <input type="date" name="end_date" value="{{ request('end_date') }}" class="form-control form-control-clean" onchange="this.form.submit()">
-                        </div>
-                    </div>
-
-                    <!-- Filter Kelas (Admin Only) -->
-                    @if(Auth::user()->role->nama_role != 'Wali Kelas')
-                    <div class="col-md-2 mb-2">
-                        <label class="filter-label">Kelas</label>
-                        <select name="kelas_id" class="form-control form-control-sm form-control-clean" onchange="this.form.submit()">
-                            <option value="">- Semua -</option>
-                            @foreach($allKelas as $k)
-                                <option value="{{ $k->id }}" {{ request('kelas_id') == $k->id ? 'selected' : '' }}>{{ $k->nama_kelas }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    @endif
-
-                    <!-- Filter Jenis Pelanggaran -->
-                    <div class="col-md-4 mb-2">
-                        <label class="filter-label">Jenis Pelanggaran</label>
-                        <select name="jenis_pelanggaran_id" class="form-control form-control-sm form-control-clean" onchange="this.form.submit()">
-                            <option value="">- Semua Jenis -</option>
-                            @foreach($allPelanggaran as $jp)
-                                <option value="{{ $jp->id }}" {{ request('jenis_pelanggaran_id') == $jp->id ? 'selected' : '' }}>
-                                    [{{ $jp->kategoriPelanggaran->nama_kategori }}] {{ $jp->nama_pelanggaran }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <!-- Live Search -->
-                    <div class="col-md-3 mb-2">
-                        <label class="filter-label">Cari Siswa</label>
-                        <div class="input-group input-group-sm">
-                            <input type="text" id="liveSearch" name="cari_siswa" class="form-control form-control-clean" 
-                                   placeholder="Ketik nama..." value="{{ request('cari_siswa') }}">
-                            <div class="input-group-append">
-                                <button class="btn btn-primary" type="submit"><i class="fas fa-search"></i></button>
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
-
-                <!-- Tombol Reset (Hanya muncul jika filter aktif) -->
-                @if(request()->has('cari_siswa') || request()->has('start_date') || request()->has('jenis_pelanggaran_id') || request()->has('kelas_id') || request()->has('pencatat_id'))
-                <div class="row mt-1 pt-2 border-top">
-                    <div class="col-12 text-right">
-                         <a href="{{ route('riwayat.index') }}" class="btn btn-default btn-xs shadow-sm text-danger font-weight-bold">
-                            <i class="fas fa-times-circle mr-1"></i> Hapus Filter
-                        </a>
-                    </div>
-                </div>
-                @endif
-            </form>
+            @include('components.riwayat.filter-form')
         </div>
     </div>
 
@@ -250,6 +186,8 @@
 @endsection
 
 @push('scripts')
+    <!-- Load Filter Module First -->
+    <script src="{{ asset('js/pages/riwayat/filters.js') }}"></script>
     <!-- Load Logic Eksternal -->
     <script src="{{ asset('js/pages/riwayat/index.js') }}"></script>
 @endpush

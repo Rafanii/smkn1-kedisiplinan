@@ -12,6 +12,9 @@
   <!-- Theme style (AdminLTE) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css">
   
+  <!-- Shared filter template styles (applies to all pages with filters) -->
+  <link rel="stylesheet" href="{{ asset('css/components/filters.css') }}">
+
   @yield('styles')
 
   <style>
@@ -163,6 +166,18 @@
                     <i class="nav-icon fas fa-gavel"></i>
                     <p>Aturan & Poin</p>
                 </a>
+            </li>
+            <li class="nav-item">
+              <a href="{{ route('jurusan.index') }}" class="nav-link {{ Request::is('jurusan*') ? 'active' : '' }}">
+                <i class="nav-icon fas fa-layer-group"></i>
+                <p>Kelola Jurusan</p>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="{{ route('kelas.index') }}" class="nav-link {{ Request::is('kelas*') ? 'active' : '' }}">
+                <i class="nav-icon fas fa-school"></i>
+                <p>Kelola Kelas</p>
+              </a>
             </li>
             @endif
 

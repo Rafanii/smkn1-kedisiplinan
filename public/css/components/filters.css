@@ -99,3 +99,87 @@
 .content-wrapper {
     overflow: visible !important;
 }
+
+/* ============================
+   Broad Shared Filter Styles
+   Applies to .form-control, .form-control-clean, filter buttons, and layout
+   This section ensures consistent appearance across pages while allowing
+   per-page CSS to override specifics.
+   ============================ */
+
+/* Container generalization */
+.filter-card, #stickyFilter {
+    background: #ffffff;
+    border: 1px solid #e9edf2;
+    border-radius: 8px;
+    padding: 0.65rem;
+    margin-bottom: 1rem;
+}
+
+/* Label */
+.filter-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #2f3a44;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 0.35rem;
+}
+
+/* Generic input styles - apply to both classes used in components */
+.form-control-clean,
+.form-control,
+select.form-control,
+select.form-control-clean {
+    height: 36px;
+    padding: 0.32rem 0.6rem;
+    font-size: 0.92rem;
+    border-radius: 6px;
+    border: 1px solid #d6dbe2;
+    background: #fbfdff;
+    transition: border-color .15s ease, box-shadow .15s ease;
+    box-sizing: border-box;
+}
+
+.form-control-clean:focus,
+.form-control:focus,
+select.form-control:focus {
+    border-color: #2b8cf7;
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(43,140,247,0.06);
+    outline: none;
+}
+
+/* Buttons */
+.filter-apply-btn {
+    background: #2b8cf7;
+    color: #fff;
+    border: 1px solid #2380df;
+    border-radius: 6px;
+    padding: 0 12px;
+}
+
+.filter-reset-btn {
+    background: transparent;
+    color: #c92a2a;
+    border: 1px solid transparent;
+    padding: 0 10px;
+}
+
+/* Compact helpers */
+.filter-row { display:flex; flex-wrap:wrap; gap:.5rem; align-items:end; }
+.filter-col { flex:1 1 220px; min-width:160px; }
+.filter-col--sm { flex:0 0 140px; max-width:180px; }
+
+/* Sticky behavior: fallback when JS toggles .sticky */
+#stickyFilter.sticky { position: fixed; top:56px; left:0; right:0; z-index:1040; border-radius:0; margin:0; }
+
+@media (max-width:767.98px) {
+    .filter-row { gap:.5rem; }
+    .filter-col, .filter-col--sm { flex:0 0 100%; max-width:100%; }
+    #stickyFilter.sticky { top:0; }
+}
+
+/* Accessibility */
+.form-control:focus-visible, .form-control-clean:focus-visible { outline: 3px solid rgba(43,140,247,0.12); }
+

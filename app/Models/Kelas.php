@@ -31,6 +31,7 @@ class Kelas extends Model
         'jurusan_id',
         'wali_kelas_user_id',
         'nama_kelas',
+        'tingkat',
     ];
 
     // =====================================================================

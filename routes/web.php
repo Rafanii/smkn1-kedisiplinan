@@ -13,6 +13,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\JenisPelanggaranController;
 use App\Http\Controllers\TindakLanjutController;
 use App\Http\Controllers\RiwayatController;
+use App\Http\Controllers\JurusanController;
 
 /*
 |--------------------------------------------------------------------------
@@ -47,7 +48,7 @@ Route::middleware(['auth'])->group(function () {
         ->middleware('role:Wali Kelas')
         ->name('dashboard.walikelas');
 
-    Route::get('/dashboard/ortu', [WaliMuridDashboardController::class, 'index'])
+    Route::get('/dashboard/wali_murid', [WaliMuridDashboardController::class, 'index'])
         ->middleware('role:Wali Murid')
         ->name('dashboard.wali_murid');
 
@@ -75,6 +76,11 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware(['role:Operator Sekolah'])->group(function () {
         Route::get('/siswa/create', [SiswaController::class, 'create'])->name('siswa.create');
         Route::post('/siswa', [SiswaController::class, 'store'])->name('siswa.store');
+        // Bulk create siswa (form + processing)
+        Route::get('/siswa/bulk-create', [SiswaController::class, 'bulkCreate'])->name('siswa.bulk.create');
+        Route::post('/siswa/bulk-store', [SiswaController::class, 'bulkStore'])->name('siswa.bulk.store');
+        Route::get('/siswa/bulk-success', [SiswaController::class, 'bulkSuccess'])->name('siswa.bulk.success');
+        Route::get('/siswa/bulk-wali-credentials.csv', [SiswaController::class, 'downloadBulkWaliCsv'])->name('siswa.download-bulk-wali-csv');
         Route::delete('/siswa/{siswa}', [SiswaController::class, 'destroy'])->name('siswa.destroy');
     });
 
@@ -110,6 +116,21 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware(['role:Operator Sekolah'])->group(function () {
         Route::resource('users', UserController::class);
         Route::resource('jenis-pelanggaran', JenisPelanggaranController::class);
+        Route::resource('kelas', App\Http\Controllers\KelasController::class)->parameters(['kelas' => 'kelas']);
+        Route::resource('jurusan', JurusanController::class)->parameters(['jurusan' => 'jurusan']);
     });
 
+    // ====================================================
+    // E. AUDIT & BULK DELETE (ADMIN ONLY)
+    // ====================================================
+    Route::middleware(['role:Operator Sekolah'])->prefix('audit')->name('audit.')->group(function () {
+        Route::get('/siswa', [\App\Http\Controllers\AuditController::class, 'show'])->name('siswa');
+        Route::post('/siswa/preview', [\App\Http\Controllers\AuditController::class, 'preview'])->name('siswa.preview');
+        Route::get('/siswa/summary', function() {
+            return view('audit.siswa.summary', session()->all());
+        })->name('siswa.summary');
+        Route::get('/siswa/export', [\App\Http\Controllers\AuditController::class, 'export'])->name('siswa.export');
+        Route::get('/siswa/confirm-delete', [\App\Http\Controllers\AuditController::class, 'confirmDelete'])->name('siswa.confirm-delete');
+        Route::delete('/siswa', [\App\Http\Controllers\AuditController::class, 'destroy'])->name('siswa.destroy');
+    });
 });

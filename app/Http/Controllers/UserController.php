@@ -49,7 +49,13 @@ class UserController extends Controller
         // Load siswa beserta kelas & jurusan untuk filtering di frontend
         $siswa = Siswa::with('kelas.jurusan')->orderBy('nama_siswa')->get();
 
-        return view('users.create', compact('roles', 'siswa', 'jurusan', 'kelas'));
+        // cek apakah sudah ada Kepala Sekolah di sistem
+        $kepsek = User::whereHas('role', function($q){ $q->where('nama_role','Kepala Sekolah'); })->first();
+        $kepsekExists = $kepsek ? true : false;
+        $kepsekId = $kepsek->id ?? null;
+        $kepsekUsername = $kepsek->username ?? null;
+
+        return view('users.create', compact('roles', 'siswa', 'jurusan', 'kelas', 'kepsekExists', 'kepsekId', 'kepsekUsername'));
     }
 
     public function store(Request $request)
@@ -59,12 +65,41 @@ class UserController extends Controller
             'username' => 'required|string|unique:users,username',
             'email' => 'required|email|unique:users,email',
             'role_id' => 'required|exists:roles,id',
+            'jurusan_id' => 'nullable|exists:jurusan,id',
+            'kelas_id' => 'nullable|exists:kelas,id',
             'password' => 'required|min:6',
             'siswa_ids' => 'nullable|array',
             'siswa_ids.*' => 'exists:siswa,id',
         ]);
 
-        DB::transaction(function() use ($request) {
+        // Jika role Kaprodi dan jurusan dipilih, pastikan jurusan belum punya Kaprodi.
+        $roleKaprodi = Role::where('nama_role', 'Kaprodi')->first();
+        if ($roleKaprodi && $request->role_id == $roleKaprodi->id && $request->filled('jurusan_id')) {
+            $jur = Jurusan::find($request->jurusan_id);
+            if ($jur && $jur->kaprodi_user_id) {
+                return back()->withInput()->withErrors(['jurusan_id' => 'Jurusan ini sudah memiliki Kaprodi: ' . (optional($jur->kaprodi)->nama ?? '—') . '. Pilih jurusan lain atau lepaskan role Kaprodi pada akun yang bersangkutan.']);
+            }
+        }
+
+        // Jika role Wali Kelas dan kelas dipilih, pastikan kelas belum punya wali
+        $roleWali = Role::where('nama_role', 'Wali Kelas')->first();
+        if ($roleWali && $request->role_id == $roleWali->id && $request->filled('kelas_id')) {
+            $kel = Kelas::find($request->kelas_id);
+            if ($kel && $kel->wali_kelas_user_id) {
+                return back()->withInput()->withErrors(['kelas_id' => 'Kelas ini sudah memiliki Wali Kelas: ' . (optional($kel->waliKelas)->nama ?? '—') . '. Pilih kelas lain atau lepaskan role Wali Kelas pada akun yang bersangkutan.']);
+            }
+        }
+
+        // Jika role Kepala Sekolah, pastikan belum ada Kepala Sekolah lain di sistem
+        $roleKepsek = Role::where('nama_role', 'Kepala Sekolah')->first();
+        if ($roleKepsek && $request->role_id == $roleKepsek->id) {
+            $exists = User::where('role_id', $roleKepsek->id)->exists();
+            if ($exists) {
+                return back()->withInput()->withErrors(['role_id' => 'Sudah ada Kepala Sekolah pada sistem. Pilih role lain atau hapus/ubah role Kepala Sekolah yang sekarang terlebih dahulu.']);
+            }
+        }
+
+        DB::transaction(function() use ($request, $roleKaprodi) {
             $user = User::create([
                 'nama' => $request->nama,
                 'username' => $request->username,
@@ -81,6 +116,16 @@ class UserController extends Controller
                         'wali_murid_user_id' => $user->id
                     ]);
                 }
+            }
+
+            // Jika role adalah Kaprodi, link ke jurusan yang dipilih (jika ada)
+            if ($roleKaprodi && $request->role_id == $roleKaprodi->id && $request->filled('jurusan_id')) {
+                Jurusan::where('id', $request->jurusan_id)->update(['kaprodi_user_id' => $user->id]);
+            }
+
+            // Jika role adalah Wali Kelas, link ke kelas yang dipilih (jika ada)
+            if ($roleWali && $request->role_id == $roleWali->id && $request->filled('kelas_id')) {
+                Kelas::where('id', $request->kelas_id)->update(['wali_kelas_user_id' => $user->id]);
             }
         });
 
@@ -100,7 +145,12 @@ class UserController extends Controller
         // Ambil anak yg sudah terhubung
         $connectedSiswaIds = $user->anakWali->pluck('id')->toArray();
 
-        return view('users.edit', compact('user', 'roles', 'siswa', 'connectedSiswaIds', 'jurusan', 'kelas'));
+        $kepsek = User::whereHas('role', function($q){ $q->where('nama_role','Kepala Sekolah'); })->first();
+        $kepsekExists = $kepsek ? true : false;
+        $kepsekId = $kepsek->id ?? null;
+        $kepsekUsername = $kepsek->username ?? null;
+
+        return view('users.edit', compact('user', 'roles', 'siswa', 'connectedSiswaIds', 'jurusan', 'kelas', 'kepsekExists', 'kepsekId', 'kepsekUsername'));
     }
 
     public function update(Request $request, User $user)
@@ -110,10 +160,39 @@ class UserController extends Controller
             'username' => 'required|unique:users,username,' . $user->id,
             'email' => 'required|email|unique:users,email,' . $user->id,
             'role_id' => 'required|exists:roles,id',
+            'jurusan_id' => 'nullable|exists:jurusan,id',
+            'kelas_id' => 'nullable|exists:kelas,id',
             'password' => 'nullable|min:6',
             'siswa_ids' => 'nullable|array',
             'siswa_ids.*' => 'exists:siswa,id',
         ]);
+
+        // Jika role Kaprodi dan jurusan dipilih, pastikan jurusan belum punya Kaprodi yang bukan user ini
+        $roleKaprodi = Role::where('nama_role', 'Kaprodi')->first();
+        if ($roleKaprodi && $request->role_id == $roleKaprodi->id && $request->filled('jurusan_id')) {
+            $jur = Jurusan::find($request->jurusan_id);
+            if ($jur && $jur->kaprodi_user_id && $jur->kaprodi_user_id != $user->id) {
+                return back()->withInput()->withErrors(['jurusan_id' => 'Jurusan ini sudah dimiliki oleh Kaprodi lain: ' . (optional($jur->kaprodi)->nama ?? '—') . '. Pilih jurusan lain atau lepaskan role Kaprodi pada akun yang bersangkutan.']);
+            }
+        }
+
+        // Jika role Wali Kelas dan kelas dipilih, pastikan kelas belum punya wali yang bukan user ini
+        $roleWali = Role::where('nama_role', 'Wali Kelas')->first();
+        if ($roleWali && $request->role_id == $roleWali->id && $request->filled('kelas_id')) {
+            $kel = Kelas::find($request->kelas_id);
+            if ($kel && $kel->wali_kelas_user_id && $kel->wali_kelas_user_id != $user->id) {
+                return back()->withInput()->withErrors(['kelas_id' => 'Kelas ini sudah dimiliki oleh Wali Kelas lain: ' . (optional($kel->waliKelas)->nama ?? '—') . '. Pilih kelas lain atau lepaskan role Wali Kelas pada akun yang bersangkutan.']);
+            }
+        }
+
+        // Jika role Kepala Sekolah, pastikan belum ada Kepala Sekolah lain di sistem
+        $roleKepsek = Role::where('nama_role', 'Kepala Sekolah')->first();
+        if ($roleKepsek && $request->role_id == $roleKepsek->id) {
+            $exists = User::where('role_id', $roleKepsek->id)->where('id', '!=', $user->id)->exists();
+            if ($exists) {
+                return back()->withInput()->withErrors(['role_id' => 'Sudah ada Kepala Sekolah pada sistem. Pilih role lain atau hapus/ubah role Kepala Sekolah yang sekarang terlebih dahulu.']);
+            }
+        }
 
         DB::transaction(function() use ($request, $user) {
             $data = [
@@ -141,6 +220,39 @@ class UserController extends Controller
                         'wali_murid_user_id' => $user->id
                     ]);
                 }
+            }
+
+            // --- Kaprodi assignment handling ---
+            $roleKaprodi = Role::where('nama_role', 'Kaprodi')->first();
+
+            // If user should be Kaprodi now
+            if ($roleKaprodi && $request->role_id == $roleKaprodi->id) {
+                // Unset any jurusan previously pointing to this user (defensive)
+                Jurusan::where('kaprodi_user_id', $user->id)->update(['kaprodi_user_id' => null]);
+
+                // If a jurusan was selected, assign it to this user
+                if ($request->filled('jurusan_id')) {
+                    Jurusan::where('id', $request->jurusan_id)->update(['kaprodi_user_id' => $user->id]);
+                }
+            } else {
+                // If user is no longer Kaprodi, remove any jurusan assignment they had
+                Jurusan::where('kaprodi_user_id', $user->id)->update(['kaprodi_user_id' => null]);
+            }
+
+            // --- Wali Kelas assignment handling ---
+            $roleWali = Role::where('nama_role', 'Wali Kelas')->first();
+
+            if ($roleWali && $request->role_id == $roleWali->id) {
+                // Unset any kelas previously pointing to this user (defensive)
+                Kelas::where('wali_kelas_user_id', $user->id)->update(['wali_kelas_user_id' => null]);
+
+                // If a kelas was selected, assign it to this user
+                if ($request->filled('kelas_id')) {
+                    Kelas::where('id', $request->kelas_id)->update(['wali_kelas_user_id' => $user->id]);
+                }
+            } else {
+                // If user is no longer Wali Kelas, remove any kelas assignment they had
+                Kelas::where('wali_kelas_user_id', $user->id)->update(['wali_kelas_user_id' => null]);
             }
         });
 

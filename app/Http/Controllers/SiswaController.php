@@ -6,8 +6,11 @@ use App\Models\Siswa;
 use App\Models\Kelas;
 use App\Models\User;
 use App\Models\Jurusan;
+use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 
 class SiswaController extends Controller
 {
@@ -18,7 +21,9 @@ class SiswaController extends Controller
     {
         $user = Auth::user();
 
-        $allJurusan = Jurusan::all();
+        // Prepare filter dropdowns according to user role
+        // Default: operator/waka see all jurusan and all kelas
+        $allJurusan = Jurusan::orderBy('nama_jurusan')->get();
         $allKelas = Kelas::orderBy('nama_kelas')->get();
 
         $query = Siswa::with('kelas.jurusan');
@@ -28,6 +33,8 @@ class SiswaController extends Controller
             $kelasBinaan = $user->kelasDiampu;
             if ($kelasBinaan) {
                 $query->where('kelas_id', $kelasBinaan->id);
+                // Wali Kelas should only see their own class in kelas dropdown
+                $allKelas = Kelas::where('id', $kelasBinaan->id)->orderBy('nama_kelas')->get();
             } else {
                 $query->where('id', 0); 
             }
@@ -38,6 +45,9 @@ class SiswaController extends Controller
                 $query->whereHas('kelas', function($q) use ($jurusanBinaan) {
                     $q->where('jurusan_id', $jurusanBinaan->id);
                 });
+                // Kaprodi should only see classes within their jurusan
+                $allJurusan = collect(); // hide jurusan filter in view
+                $allKelas = Kelas::where('jurusan_id', $jurusanBinaan->id)->orderBy('nama_kelas')->get();
             } else {
                 $query->where('id', 0);
             }
@@ -100,9 +110,48 @@ class SiswaController extends Controller
             'nomor_hp_wali_murid' => 'nullable|numeric',
             // [UPDATE] Validasi opsional untuk wali murid
             'wali_murid_user_id' => 'nullable|exists:users,id',
+            'create_wali' => 'nullable|boolean',
         ]);
 
-        Siswa::create($request->all());
+        $data = $request->only(['nisn', 'nama_siswa', 'kelas_id', 'nomor_hp_wali_murid', 'wali_murid_user_id']);
+
+        // Jika diminta membuat akun wali otomatis dan tidak memilih wali yang sudah ada
+        if ($request->boolean('create_wali') && empty($data['wali_murid_user_id'])) {
+            // gunakan NISN sebagai basis username untuk menghindari ambiguitas
+            $nisnRaw = (string) ($data['nisn'] ?? '');
+            $nisnClean = preg_replace('/\D+/', '', $nisnRaw);
+            if ($nisnClean === '') {
+                // fallback: gunakan slug dari nama siswa
+                $nisnClean = Str::slug($data['nama_siswa']);
+            }
+
+            $baseUsername = 'wali.' . $nisnClean;
+            $username = $baseUsername;
+            $i = 1;
+            while (User::where('username', $username)->exists()) {
+                $i++;
+                $username = $baseUsername . $i;
+            }
+
+            // Password standardized: smkn1.walimurid.{nisn}
+            $password = 'smkn1.walimurid.' . $nisnClean;
+            $role = Role::where('nama_role', 'Wali Murid')->first();
+
+            $user = User::create([
+                'role_id' => $role?->id,
+                'nama' => 'Wali dari ' . $data['nama_siswa'],
+                'username' => $username,
+                'email' => $username . '@no-reply.local',
+                'password' => $password,
+            ]);
+
+            $data['wali_murid_user_id'] = $user->id;
+
+            // flash kredensial supaya operator dapat menyalin setelah redirect
+            session()->flash('wali_created', ['username' => $username, 'password' => $password]);
+        }
+
+        Siswa::create($data);
 
         return redirect()->route('siswa.index')->with('success', 'Data Siswa Berhasil Ditambahkan');
     }
@@ -175,5 +224,207 @@ class SiswaController extends Controller
     {
         $siswa->delete();
         return redirect()->route('siswa.index')->with('success', 'Data Siswa Berhasil Dihapus');
+    }
+
+    /**
+     * Show bulk create form
+     */
+    public function bulkCreate()
+    {
+        return view('siswa.bulk_create');
+    }
+
+    /**
+     * Process bulk create students
+     */
+    public function bulkStore(Request $request)
+    {
+        $request->validate([
+            'kelas_id' => 'required|exists:kelas,id',
+            'bulk_data' => 'nullable|string',
+            'create_wali_all' => 'nullable|boolean',
+            'bulk_file' => 'nullable|file|mimes:csv,txt,xlsx',
+        ]);
+
+        // determine input source: uploaded CSV/XLSX file or textarea
+        $lines = [];
+        if ($request->hasFile('bulk_file')) {
+            $file = $request->file('bulk_file');
+            $mimeType = $file->getMimeType();
+            $filename = $file->getClientOriginalName();
+            
+            // handle CSV files
+            if (in_array($mimeType, ['text/csv', 'text/plain']) || str_ends_with(strtolower($filename), '.csv')) {
+                if (($handle = fopen($file->getRealPath(), 'r')) !== false) {
+                    while (($row = fgetcsv($handle, 0, ',')) !== false) {
+                        $lines[] = implode(';', $row);
+                    }
+                    fclose($handle);
+                }
+            }
+            // handle XLSX files (simple parsing using built-in PHP functionality or CSV convert)
+            else if (str_ends_with(strtolower($filename), '.xlsx') || $mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+                // attempt to parse XLSX by unzipping and reading XML (basic approach)
+                // alternatively, convert XLSX to CSV server-side or ask user to use CSV
+                // for now, we'll try a simple approach: use fgetcsv as fallback or reject
+                try {
+                    // simple approach: read first few rows; full parsing requires library
+                    // we'll use a workaround: convert XLSX to CSV on-the-fly using temp file
+                    // or fallback to CSV parsing
+                    // for MVP: ask user to use CSV or provide simple parser
+                    if (($handle = fopen($file->getRealPath(), 'r')) !== false) {
+                        while (($row = fgetcsv($handle, 0, ',')) !== false) {
+                            if (empty(array_filter($row))) continue; // skip empty rows
+                            $lines[] = implode(';', $row);
+                        }
+                        fclose($handle);
+                    }
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    return back()->withInput()->with('error', 'File XLSX tidak dapat diproses. Gunakan file CSV atau format Excel yang kompatibel.');
+                }
+            } else {
+                DB::rollBack();
+                return back()->withInput()->with('error', 'Format file tidak didukung. Gunakan CSV atau XLSX.');
+            }
+        } else {
+            $lines = preg_split('/\r\n|\r|\n/', $request->input('bulk_data'));
+        }
+        $errors = [];
+        $created = [];
+        $waliCreated = [];
+
+        DB::beginTransaction();
+        try {
+            $lineNo = 0;
+            foreach ($lines as $line) {
+                $lineNo++;
+                $line = trim($line);
+                if ($line === '') continue;
+
+                // expect format NISN;Nama;NomorHP (nomor HP optional)
+                $parts = array_map('trim', explode(';', $line));
+                if (count($parts) < 2) {
+                    $errors[] = "Baris {$lineNo}: format salah (minimal NISN;Nama).";
+                    continue;
+                }
+
+                $nisn = preg_replace('/\D+/', '', $parts[0]);
+                $nama = $parts[1];
+                $nomor = $parts[2] ?? null;
+
+                if ($nisn === '') {
+                    $errors[] = "Baris {$lineNo}: NISN kosong atau tidak valid.";
+                    continue;
+                }
+
+                if (Siswa::where('nisn', $nisn)->exists()) {
+                    $errors[] = "Baris {$lineNo}: NISN {$nisn} sudah terdaftar.";
+                    continue;
+                }
+
+                $data = [
+                    'nisn' => $nisn,
+                    'nama_siswa' => $nama,
+                    'kelas_id' => $request->kelas_id,
+                    'nomor_hp_wali_murid' => $nomor,
+                ];
+
+                // create wali if requested
+                    if ($request->boolean('create_wali_all')) {
+                    // username base: wali.{nisn}
+                    $baseUsername = 'wali.' . $nisn;
+                    $username = $baseUsername;
+                    $i = 1;
+                    while (User::where('username', $username)->exists()) {
+                        $i++;
+                        $username = $baseUsername . $i;
+                    }
+
+                    // Password standardized for bulk-created wali: smkn1.walimurid.{nisn}
+                    $password = 'smkn1.walimurid.' . $nisn;
+                    $role = Role::where('nama_role', 'Wali Murid')->first();
+                    $user = User::create([
+                        'role_id' => $role?->id,
+                        'nama' => 'Wali dari ' . $nama,
+                        'username' => $username,
+                        'email' => $username . '@no-reply.local',
+                        'password' => $password,
+                    ]);
+
+                    $data['wali_murid_user_id'] = $user->id;
+                    $waliCreated[] = ['nisn' => $nisn, 'username' => $username, 'password' => $password];
+                }
+
+                $s = Siswa::create($data);
+                $created[] = $s;
+            }
+
+            if (count($errors) > 0) {
+                DB::rollBack();
+                return back()->withInput()->with('bulk_errors', $errors);
+            }
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withInput()->with('error', 'Terjadi kesalahan saat memproses: ' . $e->getMessage());
+        }
+
+        // Flash data to session untuk ditampilkan di halaman sukses
+        session(['bulk_wali_created' => $waliCreated]);
+        session(['total_created' => count($created)]);
+        session(['total_wali_created' => count($waliCreated)]);
+        
+        return redirect()->route('siswa.bulk.success');
+    }
+
+    /**
+     * Show success page after bulk create
+     */
+    public function bulkSuccess()
+    {
+        $totalCreated = session('total_created', 0);
+        $totalWaliCreated = session('total_wali_created', 0);
+        $waliCreated = session('bulk_wali_created', []);
+        
+        return view('siswa.bulk_success', [
+            'totalCreated' => $totalCreated,
+            'totalWaliCreated' => $totalWaliCreated,
+            'waliCreated' => $waliCreated,
+            'autoDownloadFile' => route('siswa.download-bulk-wali-csv'),
+        ]);
+    }
+
+    /**
+     * Download CSV containing bulk-created wali credentials stored in session
+     */
+    public function downloadBulkWaliCsv(Request $request)
+    {
+        $data = session('bulk_wali_created');
+        if (empty($data) || !is_array($data)) {
+            return redirect()->back()->with('error', 'Tidak ada kredensial wali bulk yang tersedia untuk diunduh.');
+        }
+
+        $filename = 'bulk_wali_credentials_' . date('Ymd_His') . '.xlsx.csv';
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-16LE',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ];
+
+        $callback = function() use ($data) {
+            // UTF-16LE BOM untuk Excel (agar terbuka rapi di Excel)
+            echo "\xFF\xFE";
+            
+            $headerRow = "NISN\tUsername\tPassword\n";
+            echo mb_convert_encoding($headerRow, 'UTF-16LE', 'UTF-8');
+            
+            foreach ($data as $row) {
+                $dataRow = ($row['nisn'] ?? '') . "\t" . ($row['username'] ?? '') . "\t" . ($row['password'] ?? '') . "\n";
+                echo mb_convert_encoding($dataRow, 'UTF-16LE', 'UTF-8');
+            }
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 }

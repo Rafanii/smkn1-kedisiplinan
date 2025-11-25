@@ -140,9 +140,9 @@
                             <label class="form-label text-muted">Akun Login Wali Murid</label>
                             <select name="wali_murid_user_id" class="form-control select2" data-placeholder="-- Pilih Akun --">
                                 <option value=""></option>
-                                @foreach($waliMurid as $ortu)
-                                    <option value="{{ $ortu->id }}" {{ $siswa->wali_murid_user_id == $ortu->id ? 'selected' : '' }}>
-                                        {{ $ortu->nama }} ({{ $ortu->username }})
+                                @foreach($waliMurid as $wali)
+                                    <option value="{{ $wali->id }}" {{ $siswa->wali_murid_user_id == $wali->id ? 'selected' : '' }}>
+                                        {{ $wali->nama }} ({{ $wali->username }})
                                     </option>
                                 @endforeach
                             </select>

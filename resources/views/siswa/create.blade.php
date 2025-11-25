@@ -18,8 +18,11 @@
             <p class="text-muted small mb-0">Pastikan NISN valid dan belum terdaftar sebelumnya.</p>
         </div>
         <div class="col-sm-6 text-right">
-            <a href="{{ route('siswa.index') }}" class="btn btn-outline-secondary btn-sm border rounded">
+            <a href="{{ route('siswa.index') }}" class="btn btn-outline-secondary btn-sm border rounded mr-2">
                 <i class="fas fa-arrow-left mr-1"></i> Kembali ke Data Siswa
+            </a>
+            <a href="{{ route('siswa.bulk.create') }}" class="btn btn-outline-primary btn-sm border rounded">
+                <i class="fas fa-copy mr-1"></i> Tambah Banyak
             </a>
         </div>
     </div>
@@ -46,7 +49,8 @@
                                             <span class="input-group-text bg-white"><i class="fas fa-id-card text-secondary"></i></span>
                                         </div>
                                         <input type="text" name="nisn" class="form-control form-control-clean @error('nisn') is-invalid @enderror" 
-                                               placeholder="Nomor Induk Siswa Nasional" value="{{ old('nisn') }}" required>
+                                               placeholder="Nomor Induk Siswa Nasional (minimal 8 digit)" value="{{ old('nisn') }}" required
+                                               pattern="[0-9]{8,}" title="NISN harus numeric minimal 8 digit">
                                     </div>
                                     @error('nisn') <span class="text-danger small mt-1 d-block">{{ $message }}</span> @enderror
                                 </div>
@@ -105,9 +109,9 @@
 
                             <select name="wali_murid_user_id" class="form-control form-control-clean @error('wali_murid_user_id') is-invalid @enderror">
                                 <option value="">-- Cari Nama Wali Murid --</option>
-                                @foreach($waliMurid as $ortu)
-                                    <option value="{{ $ortu->id }}" {{ old('wali_murid_user_id') == $ortu->id ? 'selected' : '' }}>
-                                        {{ $ortu->nama }} ({{ $ortu->username }})
+                                @foreach($waliMurid as $wali)
+                                    <option value="{{ $wali->id }}" {{ old('wali_murid_user_id') == $wali->id ? 'selected' : '' }}>
+                                        {{ $wali->nama }} ({{ $wali->username }})
                                     </option>
                                 @endforeach
                             </select>
@@ -116,6 +120,23 @@
                                 <i class="fas fa-info-circle"></i> Pilih jika akun Wali Murid sudah dibuat sebelumnya di menu Manajemen User.
                             </small>
                             @error('wali_murid_user_id') <span class="text-danger small mt-1 d-block">{{ $message }}</span> @enderror
+                        </div>
+
+                        <div class="form-group mt-2">
+                            <div class="custom-control custom-checkbox">
+                                <input type="checkbox" class="custom-control-input" id="create_wali" name="create_wali" value="1" {{ old('create_wali') ? 'checked' : '' }}>
+                                <label class="custom-control-label" for="create_wali">Buat akun Wali Murid otomatis jika belum ada</label>
+                            </div>
+
+                            <small class="text-muted d-block mt-1">Jika dicentang dan Anda tidak memilih akun wali yang sudah ada, sistem akan membuat akun baru untuk wali dari siswa ini.</small>
+
+                            <div id="wali-preview" class="mt-2 p-2 bg-white border rounded d-none">
+                                <strong>Preview akun yang akan dibuat:</strong>
+                                <div class="mt-2">
+                                    <div><strong>Username:</strong> <span id="wali-preview-username">-</span></div>
+                                    <div><strong>Password:</strong> <em>Akan ditampilkan setelah disimpan</em></div>
+                                </div>
+                            </div>
                         </div>
 
                     </div>

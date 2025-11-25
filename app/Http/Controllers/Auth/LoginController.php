@@ -66,7 +66,7 @@ class LoginController extends Controller
             } elseif ($user->hasRole('Guru')) {
                 return redirect()->intended('/pelanggaran/catat');
             } elseif ($user->hasRole('Wali Murid')) {
-                return redirect()->intended('/dashboard/ortu');
+                return redirect()->intended('/dashboard/wali_murid');
             } else {
                 Auth::logout();
                 return redirect('/')->withErrors(['username' => 'Role tidak valid.']);

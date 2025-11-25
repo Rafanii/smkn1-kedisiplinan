@@ -35,7 +35,11 @@
                                     <select name="role_id" id="roleSelect" class="form-control @error('role_id') is-invalid @enderror" required>
                                         <option value="">-- Pilih Role --</option>
                                         @foreach($roles as $role)
-                                            <option value="{{ $role->id }}" {{ old('role_id') == $role->id ? 'selected' : '' }}>{{ $role->nama_role }}</option>
+                                            @php
+                                                $isKepsek = $role->nama_role === 'Kepala Sekolah';
+                                                $disabled = ($isKepsek && isset($kepsekExists) && $kepsekExists) ? 'disabled' : '';
+                                            @endphp
+                                            <option value="{{ $role->id }}" data-role-name="{{ $role->nama_role }}" {{ old('role_id') == $role->id ? 'selected' : '' }} {{ $disabled }}>{{ $role->nama_role }}@if($isKepsek && isset($kepsekExists) && $kepsekExists) — (dipegang oleh: {{ $kepsekUsername ?? '—' }})@endif</option>
                                         @endforeach
                                     </select>
                                     @error('role_id') <span class="invalid-feedback">{{ $message }}</span> @enderror
@@ -64,6 +68,36 @@
                                     <input type="text" name="password" class="form-control" value="123456" required>
                                     <small class="text-muted">Default: 123456</small>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- AREA KHUSUS WALI KELAS -->
+                        <div id="waliSection" style="display:none; margin-top: 1rem;">
+                            <div class="form-group">
+                                <label>Kelas yang diampu (Wali Kelas)</label>
+                                <select name="kelas_id" id="kelasSelect" class="form-control @error('kelas_id') is-invalid @enderror">
+                                    <option value="">-- Pilih Kelas --</option>
+                                    @foreach($kelas as $k)
+                                        <option value="{{ $k->id }}" data-wali-id="{{ $k->wali_kelas_user_id ?? '' }}" data-wali-name="{{ optional($k->waliKelas)->nama ?? '' }}" {{ old('kelas_id') == $k->id ? 'selected' : '' }}>{{ $k->nama_kelas }}@if($k->wali_kelas_user_id) — (dipegang oleh: {{ optional($k->waliKelas)->username ?? '—' }})@endif</option>
+                                    @endforeach
+                                </select>
+                                @error('kelas_id') <span class="invalid-feedback">{{ $message }}</span> @enderror
+                                <small class="text-muted d-block mt-1">Pilih kelas jika akun ini adalah Wali Kelas. Kelas yang sudah mempunyai wali dinonaktifkan.</small>
+                            </div>
+                        </div>
+
+                        <!-- AREA KHUSUS KAPRODI -->
+                        <div id="kaprodiSection" style="display: none; margin-top: 1rem;">
+                            <div class="form-group">
+                                <label>Jurusan yang diampu (Kaprodi)</label>
+                                <select name="jurusan_id" id="jurusanSelect" class="form-control @error('jurusan_id') is-invalid @enderror">
+                                    <option value="">-- Pilih Jurusan --</option>
+                                    @foreach($jurusan as $j)
+                                        <option value="{{ $j->id }}" data-kaprodi-id="{{ $j->kaprodi_user_id ?? '' }}" data-kaprodi-name="{{ optional($j->kaprodi)->nama ?? '' }}" {{ old('jurusan_id') == $j->id ? 'selected' : '' }}>{{ $j->nama_jurusan }}@if($j->kaprodi_user_id) — (dipegang oleh: {{ optional($j->kaprodi)->username ?? '—' }})@endif</option>
+                                    @endforeach
+                                </select>
+                                @error('jurusan_id') <span class="invalid-feedback">{{ $message }}</span> @enderror
+                                <small class="text-muted d-block mt-1">Pilih jurusan jika akun ini adalah Kaprodi. Jurusan yang sudah mempunyai Kaprodi dinonaktifkan.</small>
                             </div>
                         </div>
 
@@ -180,5 +214,58 @@
 @endsection
 
 @push('scripts')
-    <script src="{{ asset('js/pages/users/create.js') }}"></script>
+    <script>
+        (function(){
+            const roleSelect = document.getElementById('roleSelect');
+            const kaprodiSection = document.getElementById('kaprodiSection');
+            const jurusanSelect = document.getElementById('jurusanSelect');
+            const waliSection = document.getElementById('waliSection');
+            const kelasSelect = document.getElementById('kelasSelect');
+
+            function toggleSections() {
+                const opt = roleSelect.options[roleSelect.selectedIndex];
+                const roleName = opt ? opt.dataset.roleName : '';
+                // Kaprodi
+                if (roleName === 'Kaprodi') {
+                    kaprodiSection.style.display = '';
+                } else {
+                    kaprodiSection.style.display = 'none';
+                    if (jurusanSelect) jurusanSelect.value = '';
+                }
+
+                // Wali Kelas
+                if (roleName === 'Wali Kelas') {
+                    waliSection.style.display = '';
+                } else {
+                    waliSection.style.display = 'none';
+                    if (kelasSelect) kelasSelect.value = '';
+                }
+            }
+
+            function disableAssignedJurusan() {
+                if (!jurusanSelect) return;
+                for (let i = 0; i < jurusanSelect.options.length; i++) {
+                    const opt = jurusanSelect.options[i];
+                    const kaprodiId = opt.dataset.kaprodiId || '';
+                    if (kaprodiId && kaprodiId !== '') {
+                        opt.disabled = true;
+                    }
+                }
+            }
+
+            function disableAssignedKelas() {
+                if (!kelasSelect) return;
+                for (let i = 0; i < kelasSelect.options.length; i++) {
+                    const opt = kelasSelect.options[i];
+                    const waliId = opt.dataset.waliId || '';
+                    if (waliId && waliId !== '') {
+                        opt.disabled = true;
+                    }
+                }
+            }
+
+            roleSelect.addEventListener('change', toggleSections);
+            document.addEventListener('DOMContentLoaded', function(){ toggleSections(); disableAssignedJurusan(); disableAssignedKelas(); });
+        })();
+    </script>
 @endpush
