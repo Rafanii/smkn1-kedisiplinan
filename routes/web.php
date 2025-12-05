@@ -150,25 +150,9 @@ Route::middleware(['auth', 'profile.completed'])->group(function () {
         ->name('siswa.index');
 
     /**
-     * SHOW - Lihat profil lengkap siswa
-     * Akses: Operator, Kepsek, Waka (semua), Kaprodi (jurusannya), Wali Kelas (kelasnya)
-     */
-    Route::get('/siswa/{siswa}', [SiswaController::class, 'show'])
-        ->middleware('role:Operator Sekolah,Waka Kesiswaan,Wali Kelas,Kaprodi,Kepala Sekolah')
-        ->name('siswa.show');
-
-    /**
-     * EDIT & UPDATE - Ubah data siswa
-     * Akses: Operator (full edit), Wali Kelas (limited edit)
-     */
-    Route::middleware(['role:Operator Sekolah,Wali Kelas'])->group(function () {
-        Route::get('/siswa/{siswa}/edit', [SiswaController::class, 'edit'])->name('siswa.edit');
-        Route::put('/siswa/{siswa}', [SiswaController::class, 'update'])->name('siswa.update');
-    });
-
-    /**
      * CREATE & DELETE - Tambah/hapus siswa (master data)
      * Akses: HANYA Operator Sekolah (data integrity protection)
+     * PENTING: Route ini harus SEBELUM route {siswa} agar tidak bentrok
      */
     Route::middleware(['role:Operator Sekolah'])->group(function () {
         Route::get('/siswa/create', [SiswaController::class, 'create'])->name('siswa.create');
@@ -184,6 +168,23 @@ Route::middleware(['auth', 'profile.completed'])->group(function () {
         
         // Hapus siswa
         Route::delete('/siswa/{siswa}', [SiswaController::class, 'destroy'])->name('siswa.destroy');
+    });
+
+    /**
+     * SHOW - Lihat profil lengkap siswa
+     * Akses: Operator, Kepsek, Waka (semua), Kaprodi (jurusannya), Wali Kelas (kelasnya)
+     */
+    Route::get('/siswa/{siswa}', [SiswaController::class, 'show'])
+        ->middleware('role:Operator Sekolah,Waka Kesiswaan,Wali Kelas,Kaprodi,Kepala Sekolah')
+        ->name('siswa.show');
+
+    /**
+     * EDIT & UPDATE - Ubah data siswa
+     * Akses: Operator (full edit), Wali Kelas (limited edit)
+     */
+    Route::middleware(['role:Operator Sekolah,Wali Kelas'])->group(function () {
+        Route::get('/siswa/{siswa}/edit', [SiswaController::class, 'edit'])->name('siswa.edit');
+        Route::put('/siswa/{siswa}', [SiswaController::class, 'update'])->name('siswa.update');
     });
 
 
@@ -204,7 +205,8 @@ Route::middleware(['auth', 'profile.completed'])->group(function () {
 
     // ====== RIWAYAT SAYA (Per-Pencatat) ======
     // Halaman khusus bagi pencatat untuk melihat / mengelola catatan yang DIA catat sendiri.
-    Route::middleware(['role:Guru,Wali Kelas,Waka Kesiswaan,Kaprodi'])->group(function () {
+    // Operator Sekolah dapat melihat dan mengelola SEMUA riwayat pelanggaran tanpa batasan.
+    Route::middleware(['role:Guru,Wali Kelas,Waka Kesiswaan,Kaprodi,Operator Sekolah'])->group(function () {
         Route::get('/riwayat/saya', [\App\Http\Controllers\MyRiwayatController::class, 'index'])->name('my-riwayat.index');
         Route::get('/riwayat/saya/{riwayat}/edit', [\App\Http\Controllers\MyRiwayatController::class, 'edit'])->name('my-riwayat.edit');
         Route::put('/riwayat/saya/{riwayat}', [\App\Http\Controllers\MyRiwayatController::class, 'update'])->name('my-riwayat.update');

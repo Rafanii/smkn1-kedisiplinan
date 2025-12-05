@@ -79,11 +79,11 @@
       @auth
       <div class="user-panel mt-3 pb-3 mb-3 d-flex align-items-center border-bottom-0">
         <div class="image">
-          <!-- Avatar Generator berdasarkan Inisial Nama -->
-          <img src="https://ui-avatars.com/api/?name={{ urlencode(Auth::user()->nama) }}&background=random&color=fff" class="img-circle elevation-2" alt="User Image">
+          <!-- Avatar Generator berdasarkan Inisial Username -->
+          <img src="https://ui-avatars.com/api/?name={{ urlencode(Auth::user()->username) }}&background=random&color=fff" class="img-circle elevation-2" alt="User Image">
         </div>
         <div class="info">
-          <a href="{{ route('account.edit') }}" class="d-block font-weight-bold text-white">{{ Str::limit(Auth::user()->nama, 18) }}</a>
+          <a href="{{ route('account.edit') }}" class="d-block font-weight-bold text-white">{{ Str::limit(Auth::user()->username, 18) }}</a>
           <!-- Tampilkan role efektif (memperhitungkan impersonation untuk Developer) -->
           <span class="badge badge-info mt-1">{{ Auth::user()->effectiveRoleName() ?? Auth::user()->role?->nama_role }}</span>
         </div>

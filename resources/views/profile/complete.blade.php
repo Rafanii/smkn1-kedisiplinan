@@ -13,11 +13,70 @@
                 @csrf
                 <div class="card-body">
                     <p class="text-muted">
-                        Untuk keamanan dan kemudahan reset password / notifikasi ke depan,
-                        silakan lengkapi email dan kontak di bawah ini. Data ini bisa dilihat
-                        oleh pihak sekolah yang berwenang.
+                        Untuk keamanan akun Anda, silakan ubah username dan password default yang diberikan sistem.
+                        Lengkapi juga email dan kontak untuk kemudahan reset password dan notifikasi.
                     </p>
 
+                    <!-- Username -->
+                    <div class="form-group">
+                        <label for="username">Username <span class="text-danger">*</span></label>
+                        <input
+                            type="text"
+                            name="username"
+                            id="username"
+                            class="form-control @error('username') is-invalid @enderror"
+                            value="{{ old('username', $user->username) }}"
+                            required
+                        >
+                        @error('username')
+                            <span class="invalid-feedback" role="alert">
+                                <strong>{{ $message }}</strong>
+                            </span>
+                        @enderror
+                        <small class="form-text text-muted">
+                            Username saat ini: <strong>{{ $user->username }}</strong>. 
+                            Silakan ubah jika ingin menggunakan username yang lebih mudah diingat.
+                        </small>
+                    </div>
+
+                    <!-- Password -->
+                    <div class="form-group">
+                        <label for="password">Password Baru <span class="text-danger">*</span></label>
+                        <input
+                            type="password"
+                            name="password"
+                            id="password"
+                            class="form-control @error('password') is-invalid @enderror"
+                            required
+                        >
+                        @error('password')
+                            <span class="invalid-feedback" role="alert">
+                                <strong>{{ $message }}</strong>
+                            </span>
+                        @enderror
+                        <small class="form-text text-muted">
+                            Minimal 8 karakter. Gunakan kombinasi huruf, angka, dan simbol untuk keamanan lebih baik.
+                        </small>
+                    </div>
+
+                    <!-- Konfirmasi Password -->
+                    <div class="form-group">
+                        <label for="password_confirmation">Konfirmasi Password <span class="text-danger">*</span></label>
+                        <input
+                            type="password"
+                            name="password_confirmation"
+                            id="password_confirmation"
+                            class="form-control"
+                            required
+                        >
+                        <small class="form-text text-muted">
+                            Ketik ulang password baru Anda untuk konfirmasi.
+                        </small>
+                    </div>
+
+                    <hr>
+
+                    <!-- Email -->
                     <div class="form-group">
                         <label for="email">Email Aktif <span class="text-danger">*</span></label>
                         <input

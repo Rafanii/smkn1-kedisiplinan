@@ -49,7 +49,7 @@
                         <tr>
                             <td>{{ $j->nama_jurusan }}</td>
                             <td>{{ $j->kode_jurusan ?? '-' }}</td>
-                            <td>{{ $j->kaprodi?->nama ?? '-' }}</td>
+                            <td>{{ $j->kaprodi?->username ?? '-' }}</td>
                             <td>{{ $j->kelas_count }}</td>
                             <td>{{ $j->siswa_count }}</td>
                             <td>

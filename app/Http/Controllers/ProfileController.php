@@ -44,8 +44,10 @@ class ProfileController extends Controller
     {
         $user = Auth::user();
 
-        // Validasi dasar: semua user wajib punya email yang valid dan unik.
+        // Validasi dasar: username, password, dan email wajib diisi
         $rules = [
+            'username' => 'required|string|max:255|unique:users,username,' . $user->id,
+            'password' => 'required|string|min:8|confirmed',
             'email' => 'required|email:rfc,dns|unique:users,email,' . $user->id,
         ];
 
@@ -56,6 +58,20 @@ class ProfileController extends Controller
 
         $validated = $request->validate($rules);
 
+        // Track perubahan username
+        $usernameChanged = $validated['username'] !== $user->username;
+        if ($usernameChanged && !$user->hasChangedUsername()) {
+            $user->username_changed_at = now();
+        }
+        $user->username = $validated['username'];
+
+        // Track perubahan password
+        if (!$user->hasChangedPassword()) {
+            $user->password_changed_at = now();
+        }
+        $user->password = bcrypt($validated['password']);
+
+        // Update email
         $emailChanged = $validated['email'] !== $user->email;
         $user->email = $validated['email'];
 

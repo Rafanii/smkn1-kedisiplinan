@@ -135,7 +135,7 @@
                                             <i class="fas fa-user-tie text-secondary small"></i>
                                         </div>
                                         <div>
-                                            <div class="font-weight-bold text-sm">{{ $r->guruPencatat->nama }}</div>
+                                            <div class="font-weight-bold text-sm">{{ $r->guruPencatat->username }}</div>
                                             <div class="text-xs text-muted">Pelapor</div>
                                         </div>
                                     </a>

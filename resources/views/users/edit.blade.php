@@ -102,9 +102,11 @@
                 <div class="row">
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label>Nama (Auto-generate)</label>
-                            <input type="text" class="form-control" value="{{ $user->nama }}" disabled>
-                            <small class="text-muted">Nama di-generate otomatis berdasarkan role dan konfigurasi. Akan berubah otomatis saat role/konfigurasi diubah.</small>
+                            <label>Nama <span class="text-danger">*</span></label>
+                            <input type="text" name="nama" class="form-control @error('nama') is-invalid @enderror" 
+                                   value="{{ old('nama', $user->nama) }}" required>
+                            @error('nama') <span class="invalid-feedback">{{ $message }}</span> @enderror
+                            <small class="text-muted">Nama hanya digunakan sebagai tanda pengenal untuk operator. Yang ditampilkan di sistem adalah username.</small>
                         </div>
                     </div>
                     <div class="col-md-6">
@@ -130,15 +132,31 @@
                 <div class="row">
                     <div class="col-md-4">
                         <div class="form-group">
-                            <label>Username</label>
+                            <label>Username <span class="text-danger">*</span></label>
+                            <input type="text" name="username" class="form-control @error('username') is-invalid @enderror" 
+                                   value="{{ old('username', $user->username) }}" required>
+                            @error('username') <span class="invalid-feedback">{{ $message }}</span> @enderror
                             @if($user->hasChangedUsername())
-                                <input type="text" class="form-control" value="{{ $user->username }}" disabled>
                                 <small class="text-success">
-                                    <i class="fas fa-check-circle"></i> Username sudah diubah oleh user, tidak akan di-generate ulang.
+                                    <i class="fas fa-check-circle"></i> Username sudah diubah oleh user.
                                 </small>
                             @else
-                                <input type="text" class="form-control" value="{{ $user->username }}" disabled>
-                                <small class="text-muted">Username akan di-generate otomatis saat konfigurasi berubah (jika user belum pernah mengubahnya).</small>
+                                <small class="text-muted">Username belum pernah diubah oleh user (masih default).</small>
+                            @endif
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Password Baru (Opsional)</label>
+                            <input type="password" name="password" class="form-control @error('password') is-invalid @enderror" 
+                                   placeholder="Kosongkan jika tidak ingin mengubah">
+                            @error('password') <span class="invalid-feedback">{{ $message }}</span> @enderror
+                            @if($user->hasChangedPassword())
+                                <small class="text-success">
+                                    <i class="fas fa-check-circle"></i> Password sudah diubah oleh user.
+                                </small>
+                            @else
+                                <small class="text-muted">Password belum pernah diubah oleh user (masih default).</small>
                             @endif
                         </div>
                     </div>

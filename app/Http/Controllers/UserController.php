@@ -191,6 +191,9 @@ class UserController extends Controller
     public function update(Request $request, User $user)
     {
         $request->validate([
+            'nama' => 'required|string|max:255',
+            'username' => 'required|string|max:255|unique:users,username,' . $user->id,
+            'password' => 'nullable|string|min:8',
             'email' => 'required|email|unique:users,email,' . $user->id,
             'phone' => 'nullable|string|max:30',
             'role_id' => 'required|exists:roles,id',
@@ -230,6 +233,29 @@ class UserController extends Controller
         }
 
         DB::transaction(function() use ($request, $user) {
+            // Update nama (manual input dari operator)
+            if ($request->filled('nama')) {
+                $user->nama = $request->nama;
+            }
+
+            // Update username (manual input dari operator)
+            if ($request->filled('username') && $request->username !== $user->username) {
+                $user->username = $request->username;
+                // Mark bahwa username sudah diubah
+                if (!$user->hasChangedUsername()) {
+                    $user->username_changed_at = now();
+                }
+            }
+
+            // Update password jika diisi (manual input dari operator)
+            if ($request->filled('password')) {
+                $user->password = Hash::make($request->password);
+                // Mark bahwa password sudah diubah
+                if (!$user->hasChangedPassword()) {
+                    $user->password_changed_at = now();
+                }
+            }
+
             // Update role dulu agar relasi bisa di-generate dengan benar
             $user->role_id = $request->role_id;
             $user->email = $request->email;
@@ -296,24 +322,9 @@ class UserController extends Controller
                 Kelas::where('wali_kelas_user_id', $user->id)->update(['wali_kelas_user_id' => null]);
             }
 
-            // Reload user dengan relasi untuk generate nama/username/password
+            // Reload user dengan relasi
             $user->refresh();
             $user->load(['role', 'jurusanDiampu', 'kelasDiampu', 'anakWali']);
-
-            // Nama selalu di-generate otomatis (fleksibel mengikuti konfigurasi)
-            $user->nama = UserNamingService::generateNama($user);
-
-            // Username hanya di-generate jika belum pernah diubah oleh user
-            if (!$user->hasChangedUsername()) {
-                $user->username = UserNamingService::generateUsername($user);
-            }
-
-            // Password hanya di-generate jika belum pernah diubah oleh user
-            if (!$user->hasChangedPassword()) {
-                $user->password = Hash::make(UserNamingService::generatePassword($user));
-            }
-
-            $user->save();
         });
 
         return redirect()->route('users.index')->with('success', 'Data user berhasil diperbarui!');

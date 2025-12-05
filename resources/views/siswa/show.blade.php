@@ -76,10 +76,10 @@
                         </div>
                         <div class="col-md-6">
                             <strong><i class="fas fa-user-tie mr-1"></i> Wali Kelas</strong>
-                            <p class="text-muted">{{ $siswa->kelas->waliKelas->nama ?? '-' }}</p>
+                            <p class="text-muted">{{ $siswa->kelas->waliKelas->username ?? '-' }}</p>
 
                             <strong><i class="fas fa-user-cog mr-1"></i> Kepala Program</strong>
-                            <p class="text-muted">{{ $siswa->kelas->jurusan->kaprodi->nama ?? '-' }}</p>
+                            <p class="text-muted">{{ $siswa->kelas->jurusan->kaprodi->username ?? '-' }}</p>
                         </div>
                     </div>
                 </div>

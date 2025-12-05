@@ -28,14 +28,22 @@ class MyRiwayatController extends Controller
     }
     /**
      * Tampilkan daftar riwayat yang dicatat oleh user saat ini.
+     * Operator Sekolah dapat melihat SEMUA riwayat pelanggaran.
      */
     public function index(Request $request)
     {
+        $user = Auth::user();
         $userId = Auth::id();
 
-        $query = RiwayatPelanggaran::with(['siswa.kelas', 'jenisPelanggaran'])
-            ->where('guru_pencatat_user_id', $userId)
-            ->orderBy('tanggal_kejadian', 'desc');
+        $query = RiwayatPelanggaran::with(['siswa.kelas', 'jenisPelanggaran', 'guruPencatat']);
+
+        // Operator Sekolah bisa lihat semua riwayat
+        // Role lain hanya bisa lihat riwayat yang mereka catat sendiri
+        if (!$user->hasRole('Operator Sekolah')) {
+            $query->where('guru_pencatat_user_id', $userId);
+        }
+
+        $query->orderBy('tanggal_kejadian', 'desc');
 
         // Optional filters (tanggal range)
         if ($request->filled('start_date')) {
@@ -135,17 +143,28 @@ class MyRiwayatController extends Controller
 
     /**
      * Pastikan record dimiliki oleh user saat ini.
+     * Operator Sekolah bisa edit/hapus semua record tanpa batasan.
      */
     private function authorizeOwner(RiwayatPelanggaran $record): void
     {
+        $user = Auth::user();
+
+        // Operator Sekolah bisa edit/hapus semua record tanpa batasan waktu
+        if ($user->hasRole('Operator Sekolah')) {
+            return;
+        }
+
+        // Untuk role lain, hanya bisa edit/hapus record yang mereka catat sendiri
         if ($record->guru_pencatat_user_id !== Auth::id()) {
             abort(403, 'AKSES DITOLAK: Anda hanya dapat mengelola riwayat yang Anda catat.');
         }
 
         // Batasi kemampuan edit/hapus sampai 3 hari sejak pencatatan
-        $created = Carbon::parse($record->created_at);
-        if (Carbon::now()->greaterThan($created->copy()->addDays(3))) {
-            abort(403, 'Batas waktu edit/hapus telah lewat (lebih dari 3 hari sejak pencatatan).');
+        if ($record->created_at) {
+            $created = Carbon::parse($record->created_at);
+            if (Carbon::now()->greaterThan($created->copy()->addDays(3))) {
+                abort(403, 'Batas waktu edit/hapus telah lewat (lebih dari 3 hari sejak pencatatan).');
+            }
         }
     }
 }

@@ -45,7 +45,7 @@
                         <tr>
                             <td>{{ $k->nama_kelas }}</td>
                             <td>{{ $k->jurusan?->nama_jurusan ?? '-' }}</td>
-                            <td>{{ $k->waliKelas?->nama ?? '-' }}</td>
+                            <td>{{ $k->waliKelas?->username ?? '-' }}</td>
                             <td>{{ $k->siswa()->count() }}</td>
                             <td>
                                 <a href="{{ route('kelas.show', $k) }}" class="btn btn-sm btn-info">Detail</a>
