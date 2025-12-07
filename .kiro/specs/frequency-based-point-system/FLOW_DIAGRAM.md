@@ -169,7 +169,8 @@
 │              tentukanTipeSuratTertinggi()                       │
 │  Input:                                                         │
 │  - suratTypes: ["Surat 1", "Surat 2"]                          │
-│  - totalPoinAkumulasi: 150                                      │
+│                                                                 │
+│  ⚠️ CATATAN: Akumulasi poin TIDAK digunakan untuk surat!       │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -183,34 +184,13 @@
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  tentukanSuratDariAkumulasi(150)                                │
-│                                                                 │
-│  Range check:                                                   │
-│  - 0-50: null                                                   │
-│  - 55-100: Surat 2                                              │
-│  - 105-300: Surat 3  ← 150 poin masuk sini                      │
-│  - 305-500: Surat 4                                             │
-│  - >500: Surat 4                                                │
-│                                                                 │
-│  Result: Surat 3 (level 3)                                      │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  Compare levels:                                                │
-│  - Max level dari frequency rules: 2                            │
-│  - Level dari akumulasi: 3                                      │
-│                                                                 │
-│  Final max level: 3                                             │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  Return: "Surat 3"                                              │
+│  Return: "Surat 2"                                              │
 │                                                                 │
 │  Meaning:                                                       │
-│  - Pembina: Wali Kelas + Kaprodi + Waka Kesiswaan              │
-│  - Status: "Menunggu Persetujuan" (Surat 3 perlu approval)     │
+│  - Pembina: Wali Kelas + Kaprodi                                │
+│  - Status: "Baru" (Surat 2 tidak perlu approval)                │
+│                                                                 │
+│  ✅ Surat HANYA dari frequency rules, BUKAN dari akumulasi!    │
 └─────────────────────────────────────────────────────────────────┘
 ```
 

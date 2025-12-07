@@ -6,16 +6,15 @@ use App\Models\JenisPelanggaran;
 use App\Models\RiwayatPelanggaran;
 use App\Models\Siswa;
 use App\Models\TindakLanjut;
-use Carbon\Carbon;
 
 /**
- * Service untuk Rules Engine Pelanggaran
+ * Service untuk Rules Engine Pelanggaran (v2.0 - Frequency-Based)
  *
  * Tanggung jawab:
- * - Mengevaluasi poin dan frekuensi pelanggaran siswa
- * - Menentukan jenis surat (tipe eskalasi)
+ * - Mengevaluasi poin berdasarkan threshold frekuensi
+ * - Menentukan jenis surat berdasarkan pembina yang terlibat
  * - Membuat/update TindakLanjut dan SuratPanggilan otomatis
- * - Membaca threshold dari database (RulesEngineSettings) dengan fallback ke constants
+ * - Memberikan rekomendasi pembinaan internal (TIDAK trigger surat)
  */
 class PelanggaranRulesEngine
 {
@@ -25,48 +24,7 @@ class PelanggaranRulesEngine
     const SURAT_1 = 'Surat 1';
     const SURAT_2 = 'Surat 2';
     const SURAT_3 = 'Surat 3';
-
-    /**
-     * Konstanta threshold poin (FALLBACK VALUES - jika database tidak tersedia)
-     */
-    const THRESHOLD_SURAT_2_MIN = 100;
-    const THRESHOLD_SURAT_2_MAX = 500;
-    const THRESHOLD_SURAT_3_MIN = 501;
-    const THRESHOLD_AKUMULASI_SEDANG_MIN = 55;
-    const THRESHOLD_AKUMULASI_SEDANG_MAX = 300;
-    const THRESHOLD_AKUMULASI_KRITIS = 301;
-
-    /**
-     * Konstanta frekuensi spesifik (FALLBACK VALUES)
-     */
-    const FREKUENSI_ATRIBUT = 10;
-    const FREKUENSI_ALFA = 4;
-
-    /**
-     * Settings service instance
-     */
-    protected RulesEngineSettingsService $settingsService;
-
-    /**
-     * Constructor - inject settings service
-     */
-    public function __construct(RulesEngineSettingsService $settingsService)
-    {
-        $this->settingsService = $settingsService;
-    }
-
-    /**
-     * Get threshold value from database with fallback to constant
-     */
-    private function getThreshold(string $key, int $fallback): int
-    {
-        try {
-            return $this->settingsService->getInt($key, $fallback);
-        } catch (\Exception $e) {
-            // Fallback to constant if database error
-            return $fallback;
-        }
-    }
+    const SURAT_4 = 'Surat 4';
 
     /**
      * Proses batch pelanggaran untuk satu siswa.
@@ -81,25 +39,205 @@ class PelanggaranRulesEngine
         $siswa = Siswa::find($siswaId);
         if (!$siswa) return;
 
-        $pelanggaranObjs = JenisPelanggaran::whereIn('id', $pelanggaranIds)->get();
+        // Eager load frequency rules
+        $pelanggaranObjs = JenisPelanggaran::with('frequencyRules')
+            ->whereIn('id', $pelanggaranIds)
+            ->get();
+
         if ($pelanggaranObjs->isEmpty()) return;
 
-        // Hitung poin dan tentukan tipe surat
-        $totalPoinAkumulasi = $this->hitungTotalPoinAkumulasi($siswaId);
-        $poinBaruTotal = $pelanggaranObjs->sum('poin');
-        
-        // Tentukan tipe surat dan pemicu
-        [$tipeSurat, $pemicu, $status] = $this->tentukanTipeSuratDanStatus(
-            $siswaId,
-            $pelanggaranObjs,
-            $poinBaruTotal,
-            $totalPoinAkumulasi
-        );
+        $totalPoinBaru = 0;
+        $suratTypes = [];
+        $sanksiList = [];
 
-        // Jika ada surat yang perlu dibuat, create/update TindakLanjut
+        // Evaluasi setiap pelanggaran
+        foreach ($pelanggaranObjs as $pelanggaran) {
+            if ($pelanggaran->usesFrequencyRules()) {
+                // Gunakan frequency-based evaluation
+                $result = $this->evaluateFrequencyRules($siswaId, $pelanggaran);
+                $totalPoinBaru += $result['poin_ditambahkan'];
+
+                if ($result['surat_type']) {
+                    $suratTypes[] = $result['surat_type'];
+                }
+
+                $sanksiList[] = $result['sanksi'];
+            } else {
+                // Fallback: immediate accumulation (backward compatibility)
+                $totalPoinBaru += $pelanggaran->poin;
+
+                // Untuk pelanggaran berat, tentukan surat berdasarkan poin
+                if ($pelanggaran->poin >= 100) {
+                    // Pelanggaran berat langsung trigger surat
+                    if ($pelanggaran->poin >= 200) {
+                        $suratTypes[] = self::SURAT_3;
+                    } elseif ($pelanggaran->poin > 500) {
+                        $suratTypes[] = self::SURAT_4;
+                    } else {
+                        $suratTypes[] = self::SURAT_2;
+                    }
+                }
+            }
+        }
+
+        // Tentukan tipe surat tertinggi (HANYA dari frequency rules)
+        $tipeSurat = $this->tentukanTipeSuratTertinggi($suratTypes);
+
+        // Buat/update TindakLanjut jika diperlukan
         if ($tipeSurat) {
+            $pemicu = implode(', ', array_unique(array_filter($sanksiList)));
+            $status = in_array($tipeSurat, [self::SURAT_3, self::SURAT_4])
+                ? 'Menunggu Persetujuan'
+                : 'Baru';
+
             $this->buatAtauUpdateTindakLanjut($siswaId, $tipeSurat, $pemicu, $status);
         }
+    }
+
+    /**
+     * Evaluasi frequency rules untuk satu siswa dan satu jenis pelanggaran.
+     *
+     * @param int $siswaId
+     * @param JenisPelanggaran $pelanggaran
+     * @return array ['poin_ditambahkan' => int, 'surat_type' => string|null, 'sanksi' => string]
+     */
+    private function evaluateFrequencyRules(int $siswaId, JenisPelanggaran $pelanggaran): array
+    {
+        // Hitung frekuensi total pelanggaran ini untuk siswa
+        $currentFrequency = RiwayatPelanggaran::where('siswa_id', $siswaId)
+            ->where('jenis_pelanggaran_id', $pelanggaran->id)
+            ->count();
+
+        // Ambil semua frequency rules untuk pelanggaran ini
+        $rules = $pelanggaran->frequencyRules;
+
+        if ($rules->isEmpty()) {
+            // Fallback: tidak ada rules, gunakan poin langsung
+            return [
+                'poin_ditambahkan' => $pelanggaran->poin,
+                'surat_type' => null,
+                'sanksi' => 'Pembinaan',
+            ];
+        }
+
+        // Cari rule yang match dengan frekuensi saat ini
+        $matchedRule = $rules->first(function ($rule) use ($currentFrequency) {
+            return $rule->matchesFrequency($currentFrequency);
+        });
+
+        if (!$matchedRule) {
+            // Tidak ada rule yang match, tidak ada poin
+            return [
+                'poin_ditambahkan' => 0,
+                'surat_type' => null,
+                'sanksi' => 'Belum mencapai threshold',
+            ];
+        }
+
+        // Cek apakah threshold ini sudah pernah tercapai sebelumnya
+        $previousFrequency = $currentFrequency - 1;
+        $previousRule = $rules->first(function ($rule) use ($previousFrequency) {
+            return $rule->matchesFrequency($previousFrequency);
+        });
+
+        // Jika rule sekarang sama dengan rule sebelumnya, berarti masih di range yang sama
+        // Tidak perlu tambah poin lagi
+        if ($previousRule && $previousRule->id === $matchedRule->id) {
+            return [
+                'poin_ditambahkan' => 0,
+                'surat_type' => null,
+                'sanksi' => $matchedRule->sanksi_description,
+            ];
+        }
+
+        // Threshold baru tercapai! Tambahkan poin
+        return [
+            'poin_ditambahkan' => $matchedRule->poin,
+            'surat_type' => $matchedRule->getSuratType(),
+            'sanksi' => $matchedRule->sanksi_description,
+        ];
+    }
+
+    /**
+     * Tentukan tipe surat tertinggi dari array surat types.
+     * Prioritas: Surat 4 > Surat 3 > Surat 2 > Surat 1
+     *
+     * CATATAN PENTING: Akumulasi poin TIDAK trigger surat otomatis!
+     * Surat HANYA dari frequency rules yang memiliki trigger_surat = TRUE
+     *
+     * @param array $suratTypes
+     * @return string|null
+     */
+    private function tentukanTipeSuratTertinggi(array $suratTypes): ?string
+    {
+        if (empty($suratTypes)) {
+            // Tidak ada surat dari frequency rules
+            return null;
+        }
+
+        // Extract level dari surat types
+        $levels = array_map(function ($surat) {
+            return (int) filter_var($surat, FILTER_SANITIZE_NUMBER_INT);
+        }, $suratTypes);
+
+        $maxLevel = max($levels);
+
+        return $maxLevel > 0 ? "Surat {$maxLevel}" : null;
+    }
+
+    /**
+     * Tentukan rekomendasi pembina untuk pembinaan internal berdasarkan akumulasi poin.
+     * CATATAN: Ini HANYA rekomendasi konseling, TIDAK trigger surat pemanggilan.
+     *
+     * @param int $totalPoin Total poin akumulasi siswa
+     * @return array ['pembina_roles' => array, 'keterangan' => string]
+     */
+    private function getPembinaanInternalRekomendasi(int $totalPoin): array
+    {
+        // 0-50: Wali Kelas (konseling ringan)
+        if ($totalPoin >= 0 && $totalPoin <= 50) {
+            return [
+                'pembina_roles' => ['Wali Kelas'],
+                'keterangan' => 'Pembinaan ringan, konseling',
+            ];
+        }
+
+        // 55-100: Wali Kelas + Kaprodi (monitoring ketat)
+        if ($totalPoin >= 55 && $totalPoin <= 100) {
+            return [
+                'pembina_roles' => ['Wali Kelas', 'Kaprodi'],
+                'keterangan' => 'Pembinaan sedang, monitoring ketat',
+            ];
+        }
+
+        // 105-300: Wali Kelas + Kaprodi + Waka (pembinaan intensif)
+        if ($totalPoin >= 105 && $totalPoin <= 300) {
+            return [
+                'pembina_roles' => ['Wali Kelas', 'Kaprodi', 'Waka Kesiswaan'],
+                'keterangan' => 'Pembinaan intensif, evaluasi berkala',
+            ];
+        }
+
+        // 305-500: Wali Kelas + Kaprodi + Waka + Kepsek (pembinaan kritis)
+        if ($totalPoin >= 305 && $totalPoin <= 500) {
+            return [
+                'pembina_roles' => ['Wali Kelas', 'Kaprodi', 'Waka Kesiswaan', 'Kepala Sekolah'],
+                'keterangan' => 'Pembinaan kritis, pertemuan dengan orang tua',
+            ];
+        }
+
+        // >500: Dikembalikan kepada orang tua
+        if ($totalPoin > 500) {
+            return [
+                'pembina_roles' => ['Kepala Sekolah'],
+                'keterangan' => 'Dikembalikan kepada orang tua, siswa tidak dapat melanjutkan',
+            ];
+        }
+
+        return [
+            'pembina_roles' => [],
+            'keterangan' => 'Tidak ada pembinaan',
+        ];
     }
 
     /**
@@ -113,111 +251,6 @@ class PelanggaranRulesEngine
         return RiwayatPelanggaran::where('siswa_id', $siswaId)
             ->join('jenis_pelanggaran', 'riwayat_pelanggaran.jenis_pelanggaran_id', '=', 'jenis_pelanggaran.id')
             ->sum('jenis_pelanggaran.poin');
-    }
-
-    /**
-     * Tentukan jenis surat (tipe eskalasi) berdasarkan frekuensi dan poin.
-     *
-     * @param int $siswaId
-     * @param \Illuminate\Database\Eloquent\Collection $pelanggaranObjs
-     * @param int $poinBaruTotal Poin total dari pelanggaran baru dalam batch ini
-     * @param int $totalPoinAkumulasi Total poin akumulatif termasuk yang baru
-     * @return array [$tipeSurat, $pemicu, $status]
-     */
-    private function tentukanTipeSuratDanStatus(
-        int $siswaId,
-        $pelanggaranObjs,
-        int $poinBaruTotal,
-        int $totalPoinAkumulasi
-    ): array {
-        $tipeSurat = null;
-        $pemicu = null;
-        $status = 'Baru';
-
-        // 1. Cek frekuensi spesifik (atribut, alfa)
-        foreach ($pelanggaranObjs as $pel) {
-            $hasil = $this->cekFrekuensiSpesifik($siswaId, $pel);
-            if ($hasil) {
-                [$tipeSurat, $pemicu] = $hasil;
-                break;
-            }
-        }
-
-        // 2. Jika belum ditentukan frekuensi, gunakan threshold poin
-        if (!$tipeSurat) {
-            [$tipeSurat, $pemicu, $status] = $this->tentukanBerdasarkanPoin($poinBaruTotal);
-        }
-
-        // 3. Akumulasi poin: jika total sudah besar, bisa eskalasi
-        $akumSedangMin = $this->getThreshold('akumulasi_sedang_min', self::THRESHOLD_AKUMULASI_SEDANG_MIN);
-        $akumSedangMax = $this->getThreshold('akumulasi_sedang_max', self::THRESHOLD_AKUMULASI_SEDANG_MAX);
-        $akumKritis = $this->getThreshold('akumulasi_kritis', self::THRESHOLD_AKUMULASI_KRITIS);
-
-        if ($totalPoinAkumulasi >= $akumSedangMin) {
-            if ($totalPoinAkumulasi <= $akumSedangMax) {
-                if (!$tipeSurat || $tipeSurat === self::SURAT_1) {
-                    $tipeSurat = self::SURAT_2;
-                    $pemicu = "Akumulasi {$totalPoinAkumulasi}";
-                }
-            } elseif ($totalPoinAkumulasi >= $akumKritis) {
-                $tipeSurat = self::SURAT_3;
-                $status = 'Menunggu Persetujuan';
-                $pemicu = "Akumulasi Kritis {$totalPoinAkumulasi}";
-            }
-        }
-
-        return [$tipeSurat, $pemicu, $status];
-    }
-
-    /**
-     * Cek frekuensi spesifik untuk pelanggaran (atribut, alfa).
-     *
-     * @param int $siswaId
-     * @param JenisPelanggaran $pelanggaran
-     * @return array|null [$tipeSurat, $pemicu] atau null
-     */
-    private function cekFrekuensiSpesifik(int $siswaId, JenisPelanggaran $pelanggaran): ?array
-    {
-        $namaLower = strtolower($pelanggaran->nama_pelanggaran);
-        $frekuensi = RiwayatPelanggaran::where('siswa_id', $siswaId)
-            ->where('jenis_pelanggaran_id', $pelanggaran->id)
-            ->count();
-
-        $frekAtribut = $this->getThreshold('frekuensi_atribut', self::FREKUENSI_ATRIBUT);
-        $frekAlfa = $this->getThreshold('frekuensi_alfa', self::FREKUENSI_ALFA);
-
-        if (str_contains($namaLower, 'atribut') && $frekuensi >= $frekAtribut) {
-            return [self::SURAT_1, "Atribut ({$frekuensi}x)"];
-        }
-
-        if (str_contains($namaLower, 'alfa') && $frekuensi >= $frekAlfa) {
-            return [self::SURAT_1, "Alfa ({$frekuensi}x)"];
-        }
-
-        return null;
-    }
-
-    /**
-     * Tentukan tipe surat berdasarkan poin.
-     *
-     * @param int $poinTotal
-     * @return array [$tipeSurat, $pemicu, $status]
-     */
-    private function tentukanBerdasarkanPoin(int $poinTotal): array
-    {
-        $surat2Min = $this->getThreshold('surat_2_min_poin', self::THRESHOLD_SURAT_2_MIN);
-        $surat2Max = $this->getThreshold('surat_2_max_poin', self::THRESHOLD_SURAT_2_MAX);
-        $surat3Min = $this->getThreshold('surat_3_min_poin', self::THRESHOLD_SURAT_3_MIN);
-
-        if ($poinTotal >= $surat2Min && $poinTotal <= $surat2Max) {
-            return [self::SURAT_2, "Pelanggaran Berat", 'Baru'];
-        }
-
-        if ($poinTotal >= $surat3Min) {
-            return [self::SURAT_3, "Sangat Berat", 'Menunggu Persetujuan'];
-        }
-
-        return [null, null, 'Baru'];
     }
 
     /**
@@ -252,7 +285,7 @@ class PelanggaranRulesEngine
                 'sanksi_deskripsi' => $sanksi,
                 'status' => $status,
             ]);
-            
+
             // Buat SuratPanggilan
             $tl->suratPanggilan()->create([
                 'nomor_surat' => 'DRAFT/' . rand(100, 999),
@@ -273,6 +306,7 @@ class PelanggaranRulesEngine
      * atau di-escalate sesuai kebutuhan.
      *
      * @param int $siswaId
+     * @param bool $deleteIfNoSurat
      * @return void
      */
     public function reconcileForSiswa(int $siswaId, bool $deleteIfNoSurat = false): void
@@ -286,17 +320,34 @@ class PelanggaranRulesEngine
             ->unique()
             ->toArray();
 
-        $pelanggaranObjs = JenisPelanggaran::whereIn('id', $jenisIds)->get();
+        $pelanggaranObjs = JenisPelanggaran::with('frequencyRules')
+            ->whereIn('id', $jenisIds)
+            ->get();
 
-        $totalPoinAkumulasi = $this->hitungTotalPoinAkumulasi($siswaId);
+        $suratTypes = [];
 
-        // Untuk rekalkulasi gunakan total akumulasi sebagai dasar penentuan tipe surat
-        [$tipeSurat, $pemicu, $status] = $this->tentukanTipeSuratDanStatus(
-            $siswaId,
-            $pelanggaranObjs,
-            $totalPoinAkumulasi,
-            $totalPoinAkumulasi
-        );
+        // Re-evaluasi setiap pelanggaran
+        foreach ($pelanggaranObjs as $pelanggaran) {
+            if ($pelanggaran->usesFrequencyRules()) {
+                $result = $this->evaluateFrequencyRules($siswaId, $pelanggaran);
+                if ($result['surat_type']) {
+                    $suratTypes[] = $result['surat_type'];
+                }
+            } else {
+                // Backward compatibility
+                if ($pelanggaran->poin >= 100) {
+                    if ($pelanggaran->poin >= 200) {
+                        $suratTypes[] = self::SURAT_3;
+                    } elseif ($pelanggaran->poin > 500) {
+                        $suratTypes[] = self::SURAT_4;
+                    } else {
+                        $suratTypes[] = self::SURAT_2;
+                    }
+                }
+            }
+        }
+
+        $tipeSurat = $this->tentukanTipeSuratTertinggi($suratTypes);
 
         // Cari kasus aktif yang mungkin ada
         $kasusAktif = TindakLanjut::with('suratPanggilan')
@@ -306,17 +357,17 @@ class PelanggaranRulesEngine
             ->first();
 
         if ($tipeSurat) {
-            // Jika masih perlu tindak lanjut: buat baru atau update kasusu yang ada
+            // Jika masih perlu tindak lanjut: buat baru atau update kasus yang ada
             if (!$kasusAktif) {
-                $this->buatAtauUpdateTindakLanjut($siswaId, $tipeSurat, $pemicu, $status);
+                $this->buatAtauUpdateTindakLanjut($siswaId, $tipeSurat, 'Rekonsiliasi', 'Baru');
                 return;
             }
 
             // Jika ada kasus aktif, perbarui agar sesuai dengan tipe surat baru
             $kasusAktif->update([
-                'pemicu' => $pemicu,
+                'pemicu' => 'Rekonsiliasi',
                 'sanksi_deskripsi' => "Pemanggilan Wali Murid ({$tipeSurat})",
-                'status' => $status,
+                'status' => in_array($tipeSurat, [self::SURAT_3, self::SURAT_4]) ? 'Menunggu Persetujuan' : 'Baru',
             ]);
 
             if ($kasusAktif->suratPanggilan) {

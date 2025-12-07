@@ -96,6 +96,8 @@ class LoginController extends Controller
                 return redirect()->intended('/dashboard/kaprodi');
             } elseif ($user->hasRole('Wali Kelas')) {
                 return redirect()->intended('/dashboard/walikelas');
+            } elseif ($user->hasRole('Waka Sarana')) {
+                return redirect()->intended('/dashboard/waka-sarana');
             } elseif ($user->hasRole('Guru')) {
                 return redirect()->intended('/pelanggaran/catat');
             } elseif ($user->hasRole('Wali Murid')) {

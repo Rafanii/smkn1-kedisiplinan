@@ -129,6 +129,14 @@ Route::middleware(['auth', 'profile.completed'])->group(function () {
         ->name('dashboard.wali_murid');
 
     /**
+     * Dashboard Waka Sarana
+     * Menampilkan data pelanggaran fasilitas
+     */
+    Route::get('/dashboard/waka-sarana', [\App\Http\Controllers\Dashboard\WakaSaranaDashboardController::class, 'index'])
+        ->middleware('role:Waka Sarana')
+        ->name('dashboard.waka-sarana');
+
+    /**
      * Dashboard Developer (non-production only)
      * Development tools & impersonation status
      */
@@ -195,10 +203,10 @@ Route::middleware(['auth', 'profile.completed'])->group(function () {
 
     /**
      * CATAT PELANGGARAN - Form dan penyimpanan record pelanggaran baru
-     * Akses: Guru, Wali Kelas, Waka Kesiswaan, Kaprodi (staff yang wewenang)
+     * Akses: Guru, Wali Kelas, Waka Kesiswaan, Kaprodi, Waka Sarana (staff yang wewenang)
      * Proses: Multi-select siswa & jenis pelanggaran, auto-trigger rules engine
      */
-    Route::middleware(['role:Guru,Wali Kelas,Waka Kesiswaan,Kaprodi'])->group(function () {
+    Route::middleware(['role:Guru,Wali Kelas,Waka Kesiswaan,Kaprodi,Waka Sarana'])->group(function () {
         Route::get('/pelanggaran/catat', [PelanggaranController::class, 'create'])->name('pelanggaran.create');
         Route::post('/pelanggaran/store', [PelanggaranController::class, 'store'])->name('pelanggaran.store');
     });
@@ -206,7 +214,7 @@ Route::middleware(['auth', 'profile.completed'])->group(function () {
     // ====== RIWAYAT SAYA (Per-Pencatat) ======
     // Halaman khusus bagi pencatat untuk melihat / mengelola catatan yang DIA catat sendiri.
     // Operator Sekolah dapat melihat dan mengelola SEMUA riwayat pelanggaran tanpa batasan.
-    Route::middleware(['role:Guru,Wali Kelas,Waka Kesiswaan,Kaprodi,Operator Sekolah'])->group(function () {
+    Route::middleware(['role:Guru,Wali Kelas,Waka Kesiswaan,Kaprodi,Waka Sarana,Operator Sekolah'])->group(function () {
         Route::get('/riwayat/saya', [\App\Http\Controllers\MyRiwayatController::class, 'index'])->name('my-riwayat.index');
         Route::get('/riwayat/saya/{riwayat}/edit', [\App\Http\Controllers\MyRiwayatController::class, 'edit'])->name('my-riwayat.edit');
         Route::put('/riwayat/saya/{riwayat}', [\App\Http\Controllers\MyRiwayatController::class, 'update'])->name('my-riwayat.update');
@@ -259,13 +267,22 @@ Route::middleware(['auth', 'profile.completed'])->group(function () {
         Route::resource('kelas', App\Http\Controllers\KelasController::class)->parameters(['kelas' => 'kelas']);
         Route::resource('jurusan', JurusanController::class)->parameters(['jurusan' => 'jurusan']);
         
-        // Rules Engine Settings Management
-        Route::get('/rules-engine-settings', [App\Http\Controllers\RulesEngineSettingsController::class, 'index'])->name('rules-engine-settings.index');
-        Route::post('/rules-engine-settings', [App\Http\Controllers\RulesEngineSettingsController::class, 'update'])->name('rules-engine-settings.update');
-        Route::post('/rules-engine-settings/reset-all', [App\Http\Controllers\RulesEngineSettingsController::class, 'resetAll'])->name('rules-engine-settings.reset-all');
-        Route::post('/rules-engine-settings/{key}/reset', [App\Http\Controllers\RulesEngineSettingsController::class, 'reset'])->name('rules-engine-settings.reset');
-        Route::get('/rules-engine-settings/{key}/history', [App\Http\Controllers\RulesEngineSettingsController::class, 'history'])->name('rules-engine-settings.history');
-        Route::post('/rules-engine-settings/preview', [App\Http\Controllers\RulesEngineSettingsController::class, 'preview'])->name('rules-engine-settings.preview');
+        // Frequency Rules Management (NEW - Replaces Rules Engine Settings)
+        Route::get('/frequency-rules', [\App\Http\Controllers\FrequencyRulesController::class, 'index'])->name('frequency-rules.index');
+        Route::get('/frequency-rules/{jenisPelanggaran}', [\App\Http\Controllers\FrequencyRulesController::class, 'show'])->name('frequency-rules.show');
+        Route::post('/frequency-rules/{jenisPelanggaran}/toggle-active', [\App\Http\Controllers\FrequencyRulesController::class, 'toggleActive'])->name('frequency-rules.toggle-active');
+        Route::post('/frequency-rules/{jenisPelanggaran}', [\App\Http\Controllers\FrequencyRulesController::class, 'store'])->name('frequency-rules.store');
+        Route::put('/frequency-rules/rule/{rule}', [\App\Http\Controllers\FrequencyRulesController::class, 'update'])->name('frequency-rules.update');
+        Route::delete('/frequency-rules/rule/{rule}', [\App\Http\Controllers\FrequencyRulesController::class, 'destroy'])->name('frequency-rules.destroy');
+        
+        // Rules Engine Settings Management (OLD - DEPRECATED)
+        // Digantikan dengan Frequency Rules Management
+        // Route::get('/rules-engine-settings', [App\Http\Controllers\RulesEngineSettingsController::class, 'index'])->name('rules-engine-settings.index');
+        // Route::post('/rules-engine-settings', [App\Http\Controllers\RulesEngineSettingsController::class, 'update'])->name('rules-engine-settings.update');
+        // Route::post('/rules-engine-settings/reset-all', [App\Http\Controllers\RulesEngineSettingsController::class, 'resetAll'])->name('rules-engine-settings.reset-all');
+        // Route::post('/rules-engine-settings/{key}/reset', [App\Http\Controllers\RulesEngineSettingsController::class, 'reset'])->name('rules-engine-settings.reset');
+        // Route::get('/rules-engine-settings/{key}/history', [App\Http\Controllers\RulesEngineSettingsController::class, 'history'])->name('rules-engine-settings.history');
+        // Route::post('/rules-engine-settings/preview', [App\Http\Controllers\RulesEngineSettingsController::class, 'preview'])->name('rules-engine-settings.preview');
     });
 
 

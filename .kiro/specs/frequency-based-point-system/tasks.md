@@ -200,57 +200,72 @@ Dokumen ini berisi breakdown implementasi Frequency-Based Point System menjadi t
 
 ---
 
-## Phase 3: Role Waka Sarana
+## Phase 3: Role Waka Sarana ✅ COMPLETED
 
-### Task 3.1: Create Dashboard Controller - `WakaSaranaDashboardController`
+### Task 3.1: Create Dashboard Controller - `WakaSaranaDashboardController` ✅
 **Reference:** Design Section 5.1  
 **Requirements:** REQ-5
 
 **Steps:**
-1. Create controller: `php artisan make:controller Dashboard/WakaSaranaDashboardController`
-2. Implement method `index()`:
+1. ✅ Create controller: `php artisan make:controller Dashboard/WakaSaranaDashboardController`
+2. ✅ Implement method `index()`:
    - Query jenis pelanggaran fasilitas
    - Hitung statistik: total pelanggaran fasilitas, bulan ini
    - Query riwayat terbaru (10 records)
    - Query riwayat yang dicatat oleh Waka Sarana sendiri (5 records)
    - Return view dengan data
-3. Create view: `resources/views/dashboards/waka_sarana.blade.php`
+3. ✅ Create view: `resources/views/dashboards/waka_sarana.blade.php`
 
 **Acceptance:**
-- Dashboard menampilkan statistik pelanggaran fasilitas
-- Dashboard menampilkan riwayat terbaru
-- Dashboard menampilkan riwayat yang dicatat sendiri
+- ✅ Dashboard menampilkan statistik pelanggaran fasilitas
+- ✅ Dashboard menampilkan riwayat terbaru
+- ✅ Dashboard menampilkan riwayat yang dicatat sendiri
+
+**Files Created:**
+- `app/Http/Controllers/Dashboard/WakaSaranaDashboardController.php`
+- `resources/views/dashboards/waka_sarana.blade.php`
 
 ---
 
-### Task 3.2: Add Routes for Waka Sarana
+### Task 3.2: Add Routes for Waka Sarana ✅
 **Reference:** Design Section 5.2  
 **Requirements:** REQ-5
 
 **Steps:**
-1. Open `routes/web.php`
-2. Add route: `GET /dashboard/waka-sarana` dengan middleware `role:Waka Sarana`
-3. Update sidebar navigation untuk include link ke dashboard Waka Sarana
+1. ✅ Open `routes/web.php`
+2. ✅ Add route: `GET /dashboard/waka-sarana` dengan middleware `role:Waka Sarana`
+3. ✅ Update sidebar navigation untuk include link ke dashboard Waka Sarana
+4. ✅ Add Waka Sarana to developer impersonate menu
 
 **Acceptance:**
-- Route accessible untuk role Waka Sarana
-- Sidebar menampilkan link untuk Waka Sarana
+- ✅ Route accessible untuk role Waka Sarana (route name: `dashboard.waka-sarana`)
+- ✅ Sidebar menampilkan link untuk Waka Sarana
+- ✅ Dashboard routing updated untuk include Waka Sarana
+
+**Files Modified:**
+- `routes/web.php`
+- `resources/views/layouts/app.blade.php`
 
 ---
 
-### Task 3.3: Update Access Control for Waka Sarana
+### Task 3.3: Update Access Control for Waka Sarana ✅
 **Reference:** Design Section 5.4  
 **Requirements:** REQ-5
 
 **Steps:**
-1. Update route `/pelanggaran/catat` untuk include `Waka Sarana` di middleware
-2. Update route `/riwayat/saya` untuk include `Waka Sarana` di middleware
-3. Update `User` model untuk add helper method `isWakaSarana(): bool`
+1. ✅ Update route `/pelanggaran/catat` untuk include `Waka Sarana` di middleware (already done in previous session)
+2. ✅ Update route `/riwayat/saya` untuk include `Waka Sarana` di middleware (already done in previous session)
+3. ✅ Update `User` model untuk add helper method `isWakaSarana(): bool`
+4. ✅ Update `User::$TEACHER_ROLES` array untuk include `Waka Sarana`
 
 **Acceptance:**
-- Waka Sarana bisa catat pelanggaran
-- Waka Sarana bisa edit/hapus riwayat yang dia catat sendiri
-- Waka Sarana tidak bisa edit/hapus riwayat orang lain
+- ✅ Waka Sarana bisa catat pelanggaran
+- ✅ Waka Sarana bisa edit/hapus riwayat yang dia catat sendiri
+- ✅ Waka Sarana tidak bisa edit/hapus riwayat orang lain
+- ✅ Helper method `isWakaSarana()` available di User model
+
+**Files Modified:**
+- `app/Models/User.php`
 
 ---
 

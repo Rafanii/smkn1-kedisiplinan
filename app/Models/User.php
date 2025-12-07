@@ -177,6 +177,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'Wali Kelas',
         'Kaprodi',
         'Waka Kesiswaan',
+        'Waka Sarana',
         'Operator Sekolah',
     ];
 
@@ -210,6 +211,14 @@ class User extends Authenticatable implements MustVerifyEmail
     public function isWaliMurid(): bool
     {
         return $this->hasRole('Wali Murid');
+    }
+
+    /**
+     * Check if user is Waka Sarana.
+     */
+    public function isWakaSarana(): bool
+    {
+        return $this->hasRole('Waka Sarana');
     }
 
     /**

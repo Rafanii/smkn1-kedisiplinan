@@ -168,6 +168,12 @@
                   </a>
                 </li>
                 <li class="nav-item">
+                  <a href="{{ route('developer.impersonate', ['role' => 'Waka Sarana']) }}" class="nav-link">
+                    <i class="fas fa-tools nav-icon"></i>
+                    <p>Waka Sarana</p>
+                  </a>
+                </li>
+                <li class="nav-item">
                   <a href="{{ route('developer.impersonate', ['role' => 'Guru']) }}" class="nav-link">
                     <i class="fas fa-chalkboard nav-icon"></i>
                     <p>Guru</p>
@@ -197,6 +203,7 @@
                     elseif($role == 'Wali Kelas') $dashboardRoute = route('dashboard.walikelas');
                     elseif($role == 'Kaprodi') $dashboardRoute = route('dashboard.kaprodi');
                     elseif($role == 'Wali Murid') $dashboardRoute = route('dashboard.wali_murid');
+                    elseif($role == 'Waka Sarana') $dashboardRoute = route('dashboard.waka-sarana');
                 @endphp
                 <a href="{{ $dashboardRoute }}" class="nav-link {{ Request::is('dashboard*') ? 'active' : '' }}">
                     <i class="nav-icon fas fa-tachometer-alt"></i>
@@ -205,9 +212,9 @@
             </li>
 
             <!-- ================================= -->
-            <!-- MENU OPERASIONAL (Guru/Waka/Wali) -->
+            <!-- MENU OPERASIONAL (Guru/Waka/Wali/Waka Sarana) -->
             <!-- ================================= -->
-            @if($isDev || in_array($role, ['Guru', 'Wali Kelas', 'Waka Kesiswaan', 'Kaprodi']))
+            @if($isDev || in_array($role, ['Guru', 'Wali Kelas', 'Waka Kesiswaan', 'Kaprodi', 'Waka Sarana']))
             <li class="nav-header">OPERASIONAL</li>
             <li class="nav-item">
                 <a href="{{ route('pelanggaran.create') }}" class="nav-link {{ Request::is('pelanggaran*') ? 'active' : '' }}">
@@ -258,15 +265,9 @@
                 </a>
             </li>
             <li class="nav-item">
-                <a href="{{ route('jenis-pelanggaran.index') }}" class="nav-link {{ Request::is('jenis-pelanggaran*') ? 'active' : '' }}">
-                    <i class="nav-icon fas fa-gavel"></i>
-                    <p>Aturan & Poin</p>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="{{ route('rules-engine-settings.index') }}" class="nav-link {{ Request::is('rules-engine-settings*') ? 'active' : '' }}">
-                    <i class="nav-icon fas fa-cogs text-warning"></i>
-                    <p>Rules Engine</p>
+                <a href="{{ route('frequency-rules.index') }}" class="nav-link {{ Request::is('frequency-rules*') || Request::is('jenis-pelanggaran*') ? 'active' : '' }}">
+                    <i class="nav-icon fas fa-sliders-h text-warning"></i>
+                    <p>Kelola Aturan & Rules</p>
                 </a>
             </li>
             <li class="nav-item">
@@ -376,6 +377,12 @@
                   <a href="{{ route('developer.impersonate', ['role' => 'Waka Kesiswaan']) }}" class="nav-link">
                     <i class="fas fa-users nav-icon"></i>
                     <p>Waka Kesiswaan</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a href="{{ route('developer.impersonate', ['role' => 'Waka Sarana']) }}" class="nav-link">
+                    <i class="fas fa-tools nav-icon"></i>
+                    <p>Waka Sarana</p>
                   </a>
                 </li>
                 <li class="nav-item">

@@ -210,6 +210,10 @@ class ProfileController extends Controller
             return redirect()->intended('/dashboard/walikelas');
         }
 
+        if ($user->hasRole('Waka Sarana')) {
+            return redirect()->intended('/dashboard/waka-sarana');
+        }
+
         if ($user->hasRole('Guru')) {
             return redirect()->intended('/pelanggaran/catat');
         }

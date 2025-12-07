@@ -254,7 +254,7 @@ Sistem poin pelanggaran baru yang memberikan poin berdasarkan **threshold frekue
 ### Phase 2: Service Layer Refactoring
 - [ ] Task 2.1: Create Method - `evaluateFrequencyRules()`
 - [ ] Task 2.2: Create Method - `tentukanTipeSuratTertinggi()`
-- [ ] Task 2.3: Create Method - `tentukanSuratDariAkumulasi()`
+- [ ] Task 2.3: Create Method - `getPembinaanInternalRekomendasi()`
 - [ ] Task 2.4: Refactor Method - `processBatch()`
 - [ ] Task 2.5: Update Method - `reconcileForSiswa()`
 

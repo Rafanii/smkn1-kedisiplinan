@@ -49,24 +49,22 @@ class JenisPelanggaranController extends Controller
         $request->validate([
             'nama_pelanggaran' => 'required|string|max:255',
             'kategori_id' => 'required|exists:kategori_pelanggaran,id',
-            'poin' => 'required|integer|min:0',
+            'poin' => 'nullable|integer|min:0',
             'filter_category' => 'nullable|in:atribut,absensi,kerapian,ibadah,berat',
-            'keywords' => 'nullable|array',
-            'keywords.*' => 'nullable|string|max:255',
+            'keywords' => 'nullable|string|max:500',
         ]);
 
-        $data = $request->only(['nama_pelanggaran', 'kategori_id', 'poin', 'filter_category']);
+        $data = $request->only(['nama_pelanggaran', 'kategori_id', 'filter_category', 'keywords']);
+        
+        // Default values
+        $data['poin'] = 0; // Poin akan diatur di frequency rules
+        $data['is_active'] = false; // Nonaktif sampai ada rules
 
-        // Proses keywords: array akan dikonversi ke string dengan separator |
-        if ($request->filled('keywords')) {
-            $keywords = array_filter($request->keywords); // Hapus yang kosong
-            $data['keywords'] = implode('|', $keywords);
-        }
+        $jenisPelanggaran = JenisPelanggaran::create($data);
 
-        JenisPelanggaran::create($data);
-
-        return redirect()->route('jenis-pelanggaran.index')
-            ->with('success', 'Aturan pelanggaran berhasil ditambahkan!');
+        // Redirect ke halaman kelola rules untuk pelanggaran yang baru dibuat
+        return redirect()->route('frequency-rules.show', $jenisPelanggaran->id)
+            ->with('success', 'Jenis pelanggaran berhasil ditambahkan! Silakan atur frequency rules atau biarkan kosong untuk menggunakan poin default.');
     }
 
     /**
@@ -87,28 +85,20 @@ class JenisPelanggaranController extends Controller
         $request->validate([
             'nama_pelanggaran' => 'required|string|max:255',
             'kategori_id' => 'required|exists:kategori_pelanggaran,id',
-            'poin' => 'required|integer|min:0',
+            'poin' => 'nullable|integer|min:0',
             'filter_category' => 'nullable|in:atribut,absensi,kerapian,ibadah,berat',
-            'keywords' => 'nullable|array',
-            'keywords.*' => 'nullable|string|max:255',
+            'keywords' => 'nullable|string|max:500',
         ]);
 
         $jenisPelanggaran = JenisPelanggaran::findOrFail($id);
         
-        $data = $request->only(['nama_pelanggaran', 'kategori_id', 'poin', 'filter_category']);
-
-        // Proses keywords: array akan dikonversi ke string dengan separator |
-        if ($request->filled('keywords')) {
-            $keywords = array_filter($request->keywords); // Hapus yang kosong
-            $data['keywords'] = implode('|', $keywords);
-        } else {
-            $data['keywords'] = null;
-        }
+        $data = $request->only(['nama_pelanggaran', 'kategori_id', 'filter_category', 'keywords']);
 
         $jenisPelanggaran->update($data);
 
-        return redirect()->route('jenis-pelanggaran.index')
-            ->with('success', 'Aturan pelanggaran berhasil diperbarui!');
+        // Redirect kembali ke frequency rules
+        return redirect()->route('frequency-rules.show', $id)
+            ->with('success', 'Jenis pelanggaran berhasil diperbarui!');
     }
 
     /**

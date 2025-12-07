@@ -30,8 +30,18 @@ class JenisPelanggaran extends Model
         'kategori_id',
         'nama_pelanggaran',
         'poin',
+        'has_frequency_rules',
+        'is_active',
         'filter_category',
         'keywords',
+    ];
+
+    /**
+     * The attributes that should be cast.
+     */
+    protected $casts = [
+        'has_frequency_rules' => 'boolean',
+        'is_active' => 'boolean',
     ];
 
     // =====================================================================
@@ -54,6 +64,16 @@ class JenisPelanggaran extends Model
     public function riwayatPelanggaran(): HasMany
     {
         return $this->hasMany(RiwayatPelanggaran::class, 'jenis_pelanggaran_id');
+    }
+
+    /**
+     * Relasi Opsional: SATU JenisPelanggaran MEMILIKI BANYAK FrequencyRules.
+     * (Foreign Key di tabel 'pelanggaran_frequency_rules': jenis_pelanggaran_id)
+     */
+    public function frequencyRules(): HasMany
+    {
+        return $this->hasMany(PelanggaranFrequencyRule::class, 'jenis_pelanggaran_id')
+                    ->orderBy('display_order');
     }
 
     // =====================================================================
@@ -119,5 +139,13 @@ class JenisPelanggaran extends Model
         } else {
             $this->attributes['keywords'] = $value;
         }
+    }
+
+    /**
+     * Helper: Cek apakah pelanggaran ini menggunakan frequency rules.
+     */
+    public function usesFrequencyRules(): bool
+    {
+        return $this->has_frequency_rules === true;
     }
 }

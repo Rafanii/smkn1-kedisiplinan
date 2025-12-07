@@ -32,8 +32,8 @@ class DatabaseSeeder extends Seeder
             MassSeeder::class, 
             DeveloperRoleSeeder::class,
             
-            // Rules Engine Settings
-            RulesEngineSettingsSeeder::class,
+            // Frequency Rules (NEW - v2.0)
+            FrequencyRulesSeeder::class,
         ]);
 
         // Aktifkan kembali Foreign Key Checks

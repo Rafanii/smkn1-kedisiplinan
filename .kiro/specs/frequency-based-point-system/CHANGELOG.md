@@ -65,6 +65,32 @@
 
 ---
 
+#### 4. Pembina "Semua Guru & Staff" - NEW OPTION
+**Use Case:**
+- Untuk pelanggaran yang bisa ditindaklanjuti oleh **siapa saja yang melihat**
+- Contoh: Atribut tidak lengkap, kerapian, kebersihan
+- Pembinaan dilakukan ditempat oleh guru/staff yang kedapatan melihat
+
+**Behavior:**
+- Pembina "Semua Guru & Staff" TIDAK trigger surat pemanggilan formal
+- Fokus pada pembinaan langsung dan spontan
+- Cocok untuk pelanggaran ringan dengan frekuensi rendah
+
+**Example:**
+```
+Pelanggaran: Atribut/Seragam Tidak Lengkap
+Rule 1: Frekuensi 1-9x, Poin 0, Sanksi "Pembinaan ditempat", Pembina "Semua Guru & Staff"
+Rule 2: Frekuensi 10+x, Poin 5, Sanksi "Panggilan orang tua", Pembina "Wali Kelas", Trigger Surat
+```
+
+**Impact:**
+- ✅ Pembinaan lebih fleksibel dan responsif
+- ✅ Tidak perlu menunggu Wali Kelas untuk pelanggaran ringan
+- ✅ Semua guru/staff bisa berkontribusi dalam pembinaan
+- ✅ Mengurangi beban administratif untuk pelanggaran ringan
+
+---
+
 ### 🆕 New Features
 
 #### 1. Frequency Rules Management (Operator)
@@ -117,8 +143,8 @@
 #### PelanggaranRulesEngine
 **New Methods:**
 - `evaluateFrequencyRules(int $siswaId, JenisPelanggaran $pelanggaran): array`
-- `tentukanTipeSuratTertinggi(array $suratTypes, int $totalPoinAkumulasi): ?string`
-- `tentukanSuratDariAkumulasi(int $totalPoin): ?string`
+- `tentukanTipeSuratTertinggi(array $suratTypes): ?string`
+- `getPembinaanInternalRekomendasi(int $totalPoin): array`
 
 **Updated Methods:**
 - `processBatch()`: Support frequency-based evaluation
@@ -126,7 +152,7 @@
 
 **Removed Methods:**
 - `cekFrekuensiSpesifik()`: Replaced by frequency rules
-- `tentukanBerdasarkanPoin()`: Replaced by `tentukanSuratDariAkumulasi()`
+- `tentukanBerdasarkanPoin()`: Replaced by frequency-based evaluation
 
 ---
 
@@ -206,7 +232,7 @@
 - `PelanggaranFrequencyRule::getSuratType()`
 - `PelanggaranRulesEngine::evaluateFrequencyRules()`
 - `PelanggaranRulesEngine::tentukanTipeSuratTertinggi()`
-- `PelanggaranRulesEngine::tentukanSuratDariAkumulasi()`
+- `PelanggaranRulesEngine::getPembinaanInternalRekomendasi()`
 
 #### Integration Tests
 - Pencatatan pelanggaran dengan frequency rules
@@ -374,5 +400,64 @@ Jika ada pertanyaan atau issues setelah deployment, silakan contact:
 
 ---
 
+## Implementation Progress
+
+### ✅ Phase 1: Database & Models (COMPLETED - 2025-12-06)
+- Created `pelanggaran_frequency_rules` table
+- Added `has_frequency_rules` column to `jenis_pelanggaran`
+- Added `Waka Sarana` role
+- Created `PelanggaranFrequencyRule` model
+- Updated `JenisPelanggaran` model with frequency rules relation
+
+### ✅ Phase 2: Service Layer Refactoring (COMPLETED - 2025-12-06)
+- Refactored `PelanggaranRulesEngine` service
+- Implemented `evaluateFrequencyRules()` method
+- Implemented `tentukanTipeSuratTertinggi()` method
+- Implemented `getPembinaanInternalRekomendasi()` method
+- Updated `processBatch()` and `reconcileForSiswa()` methods
+- Removed old rules engine settings dependencies
+
+### ✅ Phase 3: Role Waka Sarana (COMPLETED - 2025-12-06)
+- Created `WakaSaranaDashboardController`
+- Created Waka Sarana dashboard view
+- Added routes for Waka Sarana
+- Updated sidebar navigation
+- Added `isWakaSarana()` helper method to User model
+- Updated access control for Waka Sarana
+
+### ✅ Phase 4: Data Migration & Seeding (COMPLETED - 2025-12-06)
+- Created `FrequencyRulesSeeder` with data from tata tertib
+- Seeded 16 frequency rules for 9 jenis pelanggaran
+- Updated `DatabaseSeeder` to include frequency rules
+- Verified data integrity
+
+### ✅ Phase 5: Frequency Rules Management UI (COMPLETED - 2025-12-07)
+- Created `FrequencyRulesController` with CRUD methods
+- Created frequency rules index and show views
+- Added toggle for is_active status (AJAX)
+- Added validation for threshold overlap
+- Integrated with jenis pelanggaran create/edit forms
+- Added "Semua Guru & Staff" option for pembina (for violations that can be handled by anyone who sees it)
+- Updated display to show detailed rules with frequency, points, sanctions, and pembina
+- Auto-activate pelanggaran when first rule added, auto-deactivate when last rule deleted
+
+### 🔧 Phase 6: Form Pencatatan Improvements (COMPLETED - 2025-12-07)
+- Fixed filter_category not working in pencatatan form (JavaScript mapping issue)
+- Added filter to only show active pelanggaran (is_active = true) in pencatatan form
+- Updated JavaScript to properly map filter buttons to filter_category values
+- Improved user experience with consistent filtering
+
+### ⏳ Phase 7: Real-time Preview UI (NOT STARTED)
+- Add frequency preview to pencatatan form
+- Add warning when threshold will be reached
+- Add poin and sanksi preview
+
+### ⏳ Phase 8: Testing (NOT STARTED)
+- Unit tests
+- Integration tests
+- Manual testing scenarios
+
+---
+
 **Last Updated**: 2025-12-06  
-**Status**: Planned (Not Yet Deployed)
+**Status**: Phase 1-4 Completed, Phase 5-7 Pending

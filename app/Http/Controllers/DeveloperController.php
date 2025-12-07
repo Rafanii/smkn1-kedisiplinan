@@ -47,6 +47,9 @@ class DeveloperController extends Controller
             case 'Wali Kelas':
                 $route = 'dashboard.walikelas';
                 break;
+            case 'Waka Sarana':
+                $route = 'dashboard.waka-sarana';
+                break;
             case 'Wali Murid':
                 $route = 'dashboard.wali_murid';
                 break;

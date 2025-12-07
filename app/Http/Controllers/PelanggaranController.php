@@ -40,7 +40,9 @@ class PelanggaranController extends Controller
         $siswa = Siswa::with('kelas.jurusan')->orderBy('nama_siswa')->get();
         $kategori = KategoriPelanggaran::all();
 
+        // HANYA tampilkan pelanggaran yang aktif (is_active = true)
         $jenisPelanggaran = JenisPelanggaran::with('kategoriPelanggaran')
+            ->where('is_active', true)
             ->orderBy('kategori_id')
             ->orderBy('nama_pelanggaran')
             ->get();

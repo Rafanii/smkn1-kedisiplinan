@@ -5,7 +5,7 @@
 
 let currentFilterTopic = 'all';
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // Initialize filters
     initStudentFilters();
     initViolationSearch();
@@ -40,7 +40,7 @@ function initStudentFilters() {
     const filterJurusan = document.getElementById('filterJurusan');
     const filterKelas = document.getElementById('filterKelas');
     const searchInput = document.getElementById('searchSiswa');
-    
+
     if (filterTingkat) filterTingkat.addEventListener('change', applyStudentFilters);
     if (filterJurusan) filterJurusan.addEventListener('change', applyStudentFilters);
     if (filterKelas) filterKelas.addEventListener('change', applyStudentFilters);
@@ -53,26 +53,26 @@ function initStudentFilters() {
 function applyStudentFilters() {
     const container = document.getElementById('studentListContainer');
     const students = container.querySelectorAll('.student-item');
-    
+
     const tingkat = document.getElementById('filterTingkat').value;
     const jurusan = document.getElementById('filterJurusan').value;
     const kelas = document.getElementById('filterKelas').value;
     const search = document.getElementById('searchSiswa').value.toLowerCase();
-    
+
     let visibleCount = 0;
-    
+
     students.forEach(student => {
         let show = true;
-        
+
         if (tingkat && student.dataset.tingkat !== tingkat) show = false;
         if (jurusan && student.dataset.jurusan !== jurusan) show = false;
         if (kelas && student.dataset.kelas !== kelas) show = false;
         if (search && !student.dataset.search.includes(search)) show = false;
-        
+
         student.style.display = show ? 'flex' : 'none';
         if (show) visibleCount++;
     });
-    
+
     const noMsg = container.querySelector('#noResultMsg');
     if (noMsg) noMsg.style.display = visibleCount === 0 ? 'block' : 'none';
 }
@@ -115,33 +115,46 @@ function initViolationSearch() {
 function applyViolationSearch() {
     const violations = document.querySelectorAll('.violation-item');
     if (violations.length === 0) return;
-    
+
     const search = document.getElementById('searchPelanggaran').value.toLowerCase();
-    
+
     let visibleCount = 0;
-    
+
     violations.forEach(violation => {
         const nama = violation.dataset.nama || '';
         const kategori = violation.dataset.kategori || '';
         const keywords = (violation.dataset.keywords || '').toLowerCase(); // keywords dalam format "key1|key2|key3"
-        
+        const filterCategory = violation.dataset.filterCategory || ''; // filter_category dari database
+
         // Pencarian: check nama, kategori, atau keywords
-        let show = !search || 
-                   nama.includes(search) || 
-                   kategori.includes(search) ||
-                   keywords.includes(search);
-        
+        let show = !search ||
+            nama.includes(search) ||
+            kategori.includes(search) ||
+            keywords.includes(search);
+
         // Apply category filter if active
-        if (currentFilterTopic !== 'all' && currentFilterTopic !== 'berat') {
-            show = show && (violation.dataset.filterCategory === currentFilterTopic || kategori === currentFilterTopic);
-        } else if (currentFilterTopic === 'berat') {
-            show = show && kategori === 'berat';
+        if (currentFilterTopic !== 'all') {
+            // Map button filter to filter_category values
+            const filterMap = {
+                'atribut': 'atribut',
+                'kehadiran': 'absensi',  // Button "Absensi" maps to filter_category "absensi"
+                'kerapian': 'kerapian',
+                'ibadah': 'ibadah',
+                'berat': 'berat'
+            };
+
+            const targetFilter = filterMap[currentFilterTopic];
+
+            if (targetFilter) {
+                // Show only if filter_category matches OR kategori matches (for backward compatibility)
+                show = show && (filterCategory === targetFilter || kategori === targetFilter);
+            }
         }
-        
+
         violation.style.display = show ? 'flex' : 'none';
         if (show) visibleCount++;
     });
-    
+
     const noMsg = document.getElementById('noViolationMsg');
     if (noMsg) noMsg.style.display = visibleCount === 0 ? 'block' : 'none';
 }
@@ -163,10 +176,10 @@ function updateSelectedStudentCount() {
 }
 
 // Ensure clicking the checkbox itself does not immediately re-toggle twice
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.student-item').forEach(item => {
         const cb = item.querySelector('input[type="checkbox"]');
-        if (cb) cb.addEventListener('click', function(e){
+        if (cb) cb.addEventListener('click', function (e) {
             e.stopPropagation();
             item.classList.toggle('selected');
             updateSelectedStudentCount();
@@ -175,7 +188,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.querySelectorAll('.violation-item').forEach(item => {
         const cb = item.querySelector('input[type="checkbox"]');
-        if (cb) cb.addEventListener('click', function(e){ e.stopPropagation(); });
+        if (cb) cb.addEventListener('click', function (e) { e.stopPropagation(); });
     });
 });
 
@@ -193,10 +206,10 @@ function initFilterPills() {
 function setFilterTopic(topic, element) {
     const container = document.querySelector('.filter-pills');
     const buttons = container.querySelectorAll('.btn');
-    
+
     buttons.forEach(b => b.classList.remove('active'));
     element.classList.add('active');
-    
+
     currentFilterTopic = topic;
     applyViolationSearch();
 }
@@ -213,7 +226,7 @@ function initFileInput() {
 
 // ----- Confirmation + Submit handling -----
 // Intercept form submit (covers Enter key and button)
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     const form = document.getElementById('formPelanggaran');
     const confirmBtn = document.getElementById('btnConfirmSubmit');
 
@@ -221,7 +234,7 @@ document.addEventListener('DOMContentLoaded', function() {
     window.__pelanggaranConfirmed = false;
 
     if (form) {
-        form.addEventListener('submit', function(e) {
+        form.addEventListener('submit', function (e) {
             if (window.__pelanggaranConfirmed) {
                 // allow submission to proceed once confirmed
                 return;
@@ -282,7 +295,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     if (confirmBtn && form) {
-        confirmBtn.addEventListener('click', function() {
+        confirmBtn.addEventListener('click', function () {
             // disable to prevent double submit
             confirmBtn.disabled = true;
             confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
