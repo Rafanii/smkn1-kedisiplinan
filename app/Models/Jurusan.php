@@ -31,6 +31,7 @@ class Jurusan extends Model
     protected $fillable = [
         'kaprodi_user_id',
         'nama_jurusan',
+        'kode_jurusan',
     ];
 
     // =====================================================================

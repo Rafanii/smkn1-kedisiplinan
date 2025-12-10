@@ -6,10 +6,24 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
 
 class Siswa extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes, LogsActivity;
+
+    /**
+     * Configure activity log options for Siswa model.
+     */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['nama_siswa', 'nisn', 'kelas_id', 'wali_murid_user_id'])
+            ->useLogName('siswa')
+            ->logOnlyDirty();
+    }
 
     /**
      * Nama tabelnya adalah 'siswa', bukan 'siswas'.
@@ -23,10 +37,10 @@ class Siswa extends Model
      */
     protected $fillable = [
         'kelas_id',
-        'orang_tua_user_id',
+        'wali_murid_user_id',
         'nisn',
         'nama_siswa',
-        'nomor_hp_ortu',
+        'nomor_hp_wali_murid',
     ];
 
     /**
@@ -48,12 +62,12 @@ class Siswa extends Model
     }
 
     /**
-     * Relasi Opsional: SATU Siswa DIMILIKI OLEH SATU User (Orang Tua).
-     * (Foreign Key: orang_tua_user_id)
+     * Relasi Opsional: SATU Siswa DIMILIKI OLEH SATU User (Wali Murid).
+     * (Foreign Key: wali_murid_user_id)
      */
-    public function orangTua(): BelongsTo
+    public function waliMurid(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'orang_tua_user_id');
+        return $this->belongsTo(User::class, 'wali_murid_user_id');
     }
 
     /**

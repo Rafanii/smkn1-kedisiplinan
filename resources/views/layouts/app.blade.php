@@ -12,6 +12,9 @@
   <!-- Theme style (AdminLTE) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css">
   
+  <!-- Shared filter template styles (applies to all pages with filters) -->
+  <link rel="stylesheet" href="{{ asset('css/components/filters.css') }}">
+
   @yield('styles')
 
   <style>
@@ -103,7 +106,7 @@
                     elseif($role == 'Kepala Sekolah') $dashboardRoute = route('dashboard.kepsek');
                     elseif($role == 'Wali Kelas') $dashboardRoute = route('dashboard.walikelas');
                     elseif($role == 'Kaprodi') $dashboardRoute = route('dashboard.kaprodi');
-                    elseif($role == 'Orang Tua') $dashboardRoute = route('dashboard.ortu');
+                    elseif($role == 'Wali Murid') $dashboardRoute = route('dashboard.wali_murid');
                 @endphp
                 <a href="{{ $dashboardRoute }}" class="nav-link {{ Request::is('dashboard*') ? 'active' : '' }}">
                     <i class="nav-icon fas fa-tachometer-alt"></i>
@@ -162,6 +165,58 @@
                 <a href="{{ route('jenis-pelanggaran.index') }}" class="nav-link {{ Request::is('jenis-pelanggaran*') ? 'active' : '' }}">
                     <i class="nav-icon fas fa-gavel"></i>
                     <p>Aturan & Poin</p>
+                </a>
+            </li>
+            <li class="nav-item">
+              <a href="{{ route('jurusan.index') }}" class="nav-link {{ Request::is('jurusan*') ? 'active' : '' }}">
+                <i class="nav-icon fas fa-layer-group"></i>
+                <p>Kelola Jurusan</p>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="{{ route('kelas.index') }}" class="nav-link {{ Request::is('kelas*') ? 'active' : '' }}">
+                <i class="nav-icon fas fa-school"></i>
+                <p>Kelola Kelas</p>
+              </a>
+            </li>
+            @endif
+
+            <!-- ================================= -->
+            <!-- MENU KEPALA SEKOLAH -->
+            <!-- ================================= -->
+            @if($role == 'Kepala Sekolah')
+            <li class="nav-header">KEPALA SEKOLAH</li>
+
+            <li class="nav-item">
+                <a href="{{ route('kepala-sekolah.approvals.index') }}" class="nav-link {{ Request::is('kepala-sekolah/approvals*') ? 'active' : '' }}">
+                    <i class="nav-icon fas fa-file-signature text-primary"></i>
+                    <p>
+                        Persetujuan Kasus
+                        @if($pendingCount = \App\Models\TindakLanjut::where('status', 'Menunggu Persetujuan')->count())
+                            <span class="badge badge-danger right">{{ $pendingCount }}</span>
+                        @endif
+                    </p>
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a href="{{ route('kepala-sekolah.reports.index') }}" class="nav-link {{ Request::is('kepala-sekolah/reports*') ? 'active' : '' }}">
+                    <i class="nav-icon fas fa-file-excel text-success"></i>
+                    <p>Laporan & Ekspor</p>
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a href="{{ route('kepala-sekolah.users.index') }}" class="nav-link {{ Request::is('kepala-sekolah/users*') ? 'active' : '' }}">
+                    <i class="nav-icon fas fa-users"></i>
+                    <p>Manajemen Pengguna</p>
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a href="{{ route('kepala-sekolah.activity.index') }}" class="nav-link {{ Request::is('kepala-sekolah/activity*') ? 'active' : '' }}">
+                    <i class="nav-icon fas fa-history text-info"></i>
+                    <p>Audit & Log</p>
                 </a>
             </li>
             @endif
@@ -224,6 +279,10 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Global Component Libraries (Non-module) -->
+<script src="{{ asset('js/components/stickyFilter.js') }}"></script>
+<script src="{{ asset('js/utils/search.js') }}"></script>
 
 @stack('scripts')
 

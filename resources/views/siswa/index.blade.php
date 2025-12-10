@@ -3,7 +3,8 @@
 @section('title', 'Data Siswa')
 
 @section('styles')
-    <link rel="stylesheet" href="{{ asset('css/pages/siswa-index.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/pages/siswa/index.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/pages/siswa/filters.css') }}">
 @endsection
 
 @section('content')
@@ -13,6 +14,7 @@
         $isOperator = ($userRole == 'Operator Sekolah');
         $isWaliKelas = ($userRole == 'Wali Kelas');
         $isWaka = ($userRole == 'Waka Kesiswaan');
+        $isKaprodi = ($userRole == 'Kaprodi');
     @endphp
 
     <div class="container-fluid">
@@ -38,81 +40,47 @@
                     @endif
                    
                     @if($isOperator)
-                    <a href="{{ route('siswa.create') }}" class="btn btn-primary btn-sm shadow-sm">
+                    <a href="{{ route('siswa.create') }}" class="btn btn-primary btn-sm shadow-sm mr-2">
                         <i class="fas fa-plus mr-1"></i> Tambah Siswa
+                    </a>
+                    <a href="{{ route('siswa.bulk.create') }}" class="btn btn-outline-primary btn-sm shadow-sm mr-2">
+                        <i class="fas fa-copy mr-1"></i> Tambah Banyak
+                    </a>
+                    <a href="{{ route('audit.siswa') }}" class="btn btn-danger btn-sm shadow-sm">
+                        <i class="fas fa-shield-alt mr-1"></i> Audit & Hapus
                     </a>
                     @endif
                 </div>
             </div>
         </div>
 
-        <!-- FILTER SECTION (CLEAN - TANPA JUDUL) -->
-        <div id="stickyFilter" class="card card-outline card-primary shadow-sm mb-4">
-            <div class="card-body bg-light py-3">
-                <form id="filterForm" action="{{ route('siswa.index') }}" method="GET">
-                    <div class="row align-items-end">
-                        
-                        <!-- FILTER KHUSUS OPERATOR/ADMIN -->
-                        @if(!$isWaliKelas)
-                        <div class="col-md-3 mb-2">
-                            <label class="small font-weight-bold text-muted mb-1">Tingkat</label>
-                            <select name="tingkat" class="form-control form-control-sm form-control-clean" onchange="this.form.submit()">
-                                <option value="">- Semua -</option>
-                                <option value="X" {{ request('tingkat') == 'X' ? 'selected' : '' }}>Kelas X</option>
-                                <option value="XI" {{ request('tingkat') == 'XI' ? 'selected' : '' }}>Kelas XI</option>
-                                <option value="XII" {{ request('tingkat') == 'XII' ? 'selected' : '' }}>Kelas XII</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3 mb-2">
-                            <label class="small font-weight-bold text-muted mb-1">Jurusan</label>
-                            <select name="jurusan_id" class="form-control form-control-sm form-control-clean" onchange="this.form.submit()">
-                                <option value="">- Semua -</option>
-                                @foreach($allJurusan as $j)
-                                    <option value="{{ $j->id }}" {{ request('jurusan_id') == $j->id ? 'selected' : '' }}>{{ $j->nama_jurusan }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-3 mb-2">
-                            <label class="small font-weight-bold text-muted mb-1">Kelas</label>
-                            <select name="kelas_id" class="form-control form-control-sm form-control-clean" onchange="this.form.submit()">
-                                <option value="">- Semua -</option>
-                                @foreach($allKelas as $k)
-                                    <option value="{{ $k->id }}" {{ request('kelas_id') == $k->id ? 'selected' : '' }}>{{ $k->nama_kelas }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        @endif
+        @if(session('success'))
+            <div class="alert alert-success">{{ session('success') }}</div>
+        @endif
+        @if(session('error'))
+            <div class="alert alert-danger">{{ session('error') }}</div>
+        @endif
 
-                        <!-- LIVE SEARCH -->
-                        <div class="{{ $isWaliKelas ? 'col-md-10' : 'col-md-3' }} mb-2">
-                            <label class="small font-weight-bold text-muted mb-1">Cari Siswa</label>
-                            <div class="input-group input-group-sm">
-                                <input type="text" id="liveSearch" name="cari" class="form-control form-control-clean" 
-                                       placeholder="Ketik Nama atau NISN..." value="{{ request('cari') }}">
-                                <div class="input-group-append">
-                                    <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i></button>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- RESET BUTTON (Desktop: Sebelah Search, Mobile: Bawah) -->
-                         @if($isWaliKelas)
-                            <div class="col-md-2 mb-2 text-right">
-                                 <a href="{{ route('siswa.index') }}" class="btn btn-default btn-sm btn-block" title="Hapus Pencarian"><i class="fas fa-undo"></i></a>
-                            </div>
-                        @else
-                             <!-- Tombol Reset muncul hanya jika ada filter -->
-                            @if(request()->has('cari') || request()->has('kelas_id') || request()->has('tingkat') || request()->has('jurusan_id'))
-                                <div class="col-12 mt-2 text-right border-top pt-2">
-                                    <a href="{{ route('siswa.index') }}" class="btn btn-xs text-danger font-weight-bold">
-                                        <i class="fas fa-times-circle"></i> Reset Filter
-                                    </a>
-                                </div>
-                            @endif
-                        @endif
+        @if(session('wali_created'))
+            @php $c = session('wali_created'); @endphp
+            <div class="alert alert-info">
+                Akun Wali Murid otomatis telah dibuat: <strong>{{ $c['username'] }}</strong>
+                <br>Password (sampel): <strong>{{ $c['password'] }}</strong>
+                <br>Pastikan untuk menyampaikan kredensial ini kepada wali dan menyarankan perubahan password setelah login.
+            </div>
+        @endif
+        @if(session('bulk_wali_created'))
+            @php $list = session('bulk_wali_created'); @endphp
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <strong>✓ Sukses!</strong> {{ count($list) }} akun Wali Murid telah dibuat. File Excel kredensial otomatis diunduh ke device Anda (format: NISN | Username | Password).
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            </div>
+        @endif
 
-                    </div>
-                </form>
+        <!-- FILTER SECTION - EXTRACTED TO PARTIAL -->
+        <div id="stickyFilter" class="card card-outline card-primary shadow-sm border-0">
+            <div class="card-body bg-white py-3" style="border-radius:8px;">
+                @include('components.siswa.filter-form')
             </div>
         </div>
 
@@ -126,7 +94,7 @@
                             <th>NISN</th>
                             <th>Nama Siswa</th>
                             @if(!$isWaliKelas) <th>Kelas</th> @endif
-                            <th>Kontak Ortu</th>
+                            <th>Kontak Wali Murid</th>
                             <th class="text-center">Aksi</th>
                         </tr>
                     </thead>
@@ -137,17 +105,17 @@
                             <td><code>{{ $s->nisn }}</code></td>
                             <td>
                                 <span class="font-weight-bold text-dark">{{ $s->nama_siswa }}</span>
-                                @if($isWaliKelas && !$s->orangTua)
-                                    <i class="fas fa-exclamation-circle text-danger ml-1" title="Akun Orang Tua belum dihubungkan oleh Operator"></i>
+                                @if($isWaliKelas && !$s->waliMurid)
+                                    <i class="fas fa-exclamation-circle text-danger ml-1" title="Akun Wali Murid belum dihubungkan oleh Operator"></i>
                                 @endif
                             </td>
                             @if(!$isWaliKelas)
                                 <td><span class="badge badge-light border">{{ $s->kelas->nama_kelas }}</span></td>
                             @endif
                             <td>
-                                @if($s->nomor_hp_ortu)
-                                    <a href="https://wa.me/62{{ ltrim($s->nomor_hp_ortu, '0') }}" target="_blank" class="text-success font-weight-bold">
-                                        <i class="fab fa-whatsapp"></i> {{ $s->nomor_hp_ortu }}
+                                @if($s->nomor_hp_wali_murid)
+                                    <a href="https://wa.me/62{{ ltrim($s->nomor_hp_wali_murid, '0') }}" target="_blank" class="text-success font-weight-bold">
+                                        <i class="fab fa-whatsapp"></i> {{ $s->nomor_hp_wali_murid }}
                                     </a>
                                 @else
                                     <span class="text-muted text-sm font-italic">Kosong</span>
@@ -196,4 +164,9 @@
             </div>
         </div>
     </div>
+@endsection
+
+@section('scripts')
+    <script src="{{ asset('js/pages/siswa/filters.js') }}"></script>
+    <script src="{{ asset('js/pages/siswa/index.js') }}"></script>
 @endsection

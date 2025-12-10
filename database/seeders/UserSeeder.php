@@ -71,68 +71,8 @@ class UserSeeder extends Seeder
             ]
         );
 
-        // 6. Buat 5 User Kaprodi (satu per jurusan)
-        User::updateOrCreate(
-            ['username' => 'kaprodi.atp'],
-            [
-                'role_id' => $roleKaprodi,
-                'nama' => 'Kaprodi ATP',
-                'email' => 'kaprodi.atp@smkn1.sch.id',
-                'password' => Hash::make('password'),
-                'email_verified_at' => now(),
-            ]
-        );
-        User::updateOrCreate(
-            ['username' => 'kaprodi.aphp'],
-            [
-                'role_id' => $roleKaprodi,
-                'nama' => 'Kaprodi APHP',
-                'email' => 'kaprodi.aphp@smkn1.sch.id',
-                'password' => Hash::make('password'),
-                'email_verified_at' => now(),
-            ]
-        );
-        User::updateOrCreate(
-            ['username' => 'kaprodi.atu'],
-            [
-                'role_id' => $roleKaprodi,
-                'nama' => 'Kaprodi ATU',
-                'email' => 'kaprodi.atu@smkn1.sch.id',
-                'password' => Hash::make('password'),
-                'email_verified_at' => now(),
-            ]
-        );
-        User::updateOrCreate(
-            ['username' => 'kaprodi.teb'],
-            [
-                'role_id' => $roleKaprodi,
-                'nama' => 'Kaprodi TEB',
-                'email' => 'kaprodi.teb@smkn1.sch.id',
-                'password' => Hash::make('password'),
-                'email_verified_at' => now(),
-            ]
-        );
-        User::updateOrCreate(
-            ['username' => 'kaprodi.akl'],
-            [
-                'role_id' => $roleKaprodi,
-                'nama' => 'Kaprodi AKL',
-                'email' => 'kaprodi.akl@smkn1.sch.id',
-                'password' => Hash::make('password'),
-                'email_verified_at' => now(),
-            ]
-        );
-        
-        // 7. Buat 1 User Wali Kelas (untuk tes awal)
-        User::updateOrCreate(
-            ['username' => 'walikelas.tes'],
-            [
-                'role_id' => $roleWaliKelas,
-                'nama' => 'Wali Kelas Tes',
-                'email' => 'walikelas.tes@smkn1.sch.id',
-                'password' => Hash::make('password'),
-                'email_verified_at' => now(),
-            ]
-        );
+        // Note: Kaprodi, Wali Kelas dan Wali Murid will be auto-generated
+        // during Jurusan/Kelas/Siswa creation in app flow. Seeder only creates
+        // operator/waka/kepsek/guru accounts as requested.
     }
 }

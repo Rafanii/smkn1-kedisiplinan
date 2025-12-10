@@ -17,9 +17,31 @@ class TindakLanjutController extends Controller
         // 1. Ambil data kasus beserta relasinya (Siswa, Surat)
         $kasus = TindakLanjut::with(['siswa.kelas', 'suratPanggilan'])->findOrFail($id);
 
-        // (Opsional: Tambahkan validasi keamanan di sini)
-        // Misal: Pastikan yang membuka adalah Wali Kelas yang berhak
-        
+        // VALIDASI AKSES BERPASANGAN: Pastikan user punya scope untuk melihat/kelola kasus ini
+        $user = Auth::user();
+
+        // Wali Kelas hanya boleh mengakses kasus untuk siswa di kelas yang dia ampu
+        if ($user->hasRole('Wali Kelas')) {
+            $kelasBinaan = $user->kelasDiampu;
+            if (!$kelasBinaan || $kasus->siswa->kelas_id !== $kelasBinaan->id) {
+                abort(403, 'AKSES DITOLAK: Anda hanya dapat mengelola kasus siswa di kelas yang Anda ampu.');
+            }
+        }
+        // Kaprodi hanya boleh mengakses kasus di jurusan yang dia ampu
+        if ($user->hasRole('Kaprodi')) {
+            $jurusanBinaan = $user->jurusanDiampu;
+            if (!$jurusanBinaan || $kasus->siswa->kelas->jurusan_id !== $jurusanBinaan->id) {
+                abort(403, 'AKSES DITOLAK: Anda hanya dapat mengelola kasus di jurusan Anda.');
+            }
+        }
+        // Wali Murid hanya boleh mengakses kasus untuk anaknya
+        if ($user->hasRole('Wali Murid')) {
+            $anakIds = $user->anakWali->pluck('id');
+            if (!$anakIds->contains($kasus->siswa_id)) {
+                abort(403, 'AKSES DITOLAK: Anda hanya dapat melihat kasus untuk anak Anda.');
+            }
+        }
+
         return view('tindaklanjut.edit', [
             'kasus' => $kasus
         ]);
@@ -36,7 +58,7 @@ class TindakLanjutController extends Controller
 
         // 2. Ambil Data Kasus & User
         $kasus = TindakLanjut::findOrFail($id);
-        $userRole = Auth::user()->role->nama_role;
+        $user = Auth::user();
         $statusLama = $kasus->status;
         $statusBaru = $request->status;
 
@@ -57,16 +79,16 @@ class TindakLanjutController extends Controller
         // Hanya "Kepala Sekolah" yang boleh mengubahnya.
         // Wali Kelas / Waka tidak boleh menyentuh statusnya sampai Kepsek bertindak.
         if ($statusLama == 'Menunggu Persetujuan') {
-            if ($userRole != 'Kepala Sekolah') {
+            if (!$user->hasRole('Kepala Sekolah')) {
                 return back()->withErrors(['status' => 'AKSES DITOLAK: Kasus ini sedang menunggu persetujuan Kepala Sekolah. Anda tidak dapat mengubah statusnya saat ini.']);
             }
         }
 
         // ATURAN 3: PROTEKSI STATUS "DISITUJU" (Hanya Kepsek yang bisa set "Disetujui")
         // Jangan sampai Wali Kelas iseng mengubah status "Baru" langsung jadi "Disetujui" tanpa lewat Kepsek.
-        if ($statusBaru == 'Disetujui' && $userRole != 'Kepala Sekolah') {
-             return back()->withErrors(['status' => 'AKSES DITOLAK: Hanya Kepala Sekolah yang berhak memberikan status Disetujui.']);
-        }
+           if ($statusBaru == 'Disetujui' && !$user->hasRole('Kepala Sekolah')) {
+               return back()->withErrors(['status' => 'AKSES DITOLAK: Hanya Kepala Sekolah yang berhak memberikan status Disetujui.']);
+           }
 
         // ATURAN 4: JIKA KASUS SUDAH "SELESAI"
         // Kasus yang sudah ditutup TIDAK BOLEH dibuka kembali.
@@ -94,9 +116,9 @@ class TindakLanjutController extends Controller
 
 
         // 5. Redirect Dinamis
-        if ($userRole == 'Kepala Sekolah') {
+        if ($user->hasRole('Kepala Sekolah')) {
             return redirect()->route('dashboard.kepsek')->with('success', 'Dokumen berhasil disetujui!');
-        } elseif ($userRole == 'Waka Kesiswaan' || $userRole == 'Operator Sekolah') {
+        } elseif ($user->hasAnyRole(['Waka Kesiswaan', 'Operator Sekolah'])) {
             return redirect()->route('dashboard.admin')->with('success', 'Kasus berhasil diperbarui!');
         } else {
             return redirect()->route('dashboard.walikelas')->with('success', 'Kasus berhasil diperbarui!');
@@ -107,7 +129,7 @@ class TindakLanjutController extends Controller
      */
     public function cetakSurat($id)
     {
-        $kasus = TindakLanjut::with(['siswa.kelas.jurusan', 'suratPanggilan', 'siswa.orangTua', 'siswa.kelas.waliKelas'])
+        $kasus = TindakLanjut::with(['siswa.kelas.jurusan', 'suratPanggilan', 'siswa.waliMurid', 'siswa.kelas.waliKelas'])
             ->findOrFail($id);
 
         // 1. CEGAH CETAK JIKA BELUM DI-ACC (Khusus Surat 3 / Kasus Berat)

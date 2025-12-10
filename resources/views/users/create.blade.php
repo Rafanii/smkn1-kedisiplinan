@@ -2,48 +2,11 @@
 
 @section('title', 'Tambah User Baru')
 
+@section('styles')
+    <link rel="stylesheet" href="{{ asset('css/pages/users/create.css') }}">
+@endsection
+
 @section('content')
-<style>
-    /* Styling untuk area Filter */
-    .filter-box {
-        background-color: #f4f6f9;
-        border: 1px solid #ced4da;
-        border-radius: 5px;
-        padding: 15px;
-        margin-bottom: 15px;
-    }
-    /* Styling untuk Daftar Siswa (Scrollable) */
-    .student-list-container {
-        max-height: 300px; /* Tinggi maksimal list */
-        overflow-y: auto;  /* Scroll jika data banyak */
-        border: 1px solid #ced4da;
-        background: #fff;
-        border-radius: 4px;
-    }
-    .student-item {
-        padding: 8px 12px;
-        border-bottom: 1px solid #f0f0f0;
-        cursor: pointer;
-        transition: background 0.2s;
-    }
-    .student-item:hover {
-        background-color: #e8f4ff;
-    }
-    .student-item:last-child {
-        border-bottom: none;
-    }
-    .student-item label {
-        cursor: pointer;
-        font-weight: normal !important;
-        margin-bottom: 0;
-        width: 100%;
-    }
-    /* Checkbox custom size */
-    .student-checkbox {
-        transform: scale(1.2);
-        margin-right: 10px;
-    }
-</style>
 
 <div class="container-fluid">
     <div class="row">
@@ -72,7 +35,11 @@
                                     <select name="role_id" id="roleSelect" class="form-control @error('role_id') is-invalid @enderror" required>
                                         <option value="">-- Pilih Role --</option>
                                         @foreach($roles as $role)
-                                            <option value="{{ $role->id }}" {{ old('role_id') == $role->id ? 'selected' : '' }}>{{ $role->nama_role }}</option>
+                                            @php
+                                                $isKepsek = $role->nama_role === 'Kepala Sekolah';
+                                                $disabled = ($isKepsek && isset($kepsekExists) && $kepsekExists) ? 'disabled' : '';
+                                            @endphp
+                                            <option value="{{ $role->id }}" data-role-name="{{ $role->nama_role }}" {{ old('role_id') == $role->id ? 'selected' : '' }} {{ $disabled }}>{{ $role->nama_role }}@if($isKepsek && isset($kepsekExists) && $kepsekExists) — (dipegang oleh: {{ $kepsekUsername ?? '—' }})@endif</option>
                                         @endforeach
                                     </select>
                                     @error('role_id') <span class="invalid-feedback">{{ $message }}</span> @enderror
@@ -104,10 +71,40 @@
                             </div>
                         </div>
 
+                        <!-- AREA KHUSUS WALI KELAS -->
+                        <div id="waliSection" style="display:none; margin-top: 1rem;">
+                            <div class="form-group">
+                                <label>Kelas yang diampu (Wali Kelas)</label>
+                                <select name="kelas_id" id="kelasSelect" class="form-control @error('kelas_id') is-invalid @enderror">
+                                    <option value="">-- Pilih Kelas --</option>
+                                    @foreach($kelas as $k)
+                                        <option value="{{ $k->id }}" data-wali-id="{{ $k->wali_kelas_user_id ?? '' }}" data-wali-name="{{ optional($k->waliKelas)->nama ?? '' }}" {{ old('kelas_id') == $k->id ? 'selected' : '' }}>{{ $k->nama_kelas }}@if($k->wali_kelas_user_id) — (dipegang oleh: {{ optional($k->waliKelas)->username ?? '—' }})@endif</option>
+                                    @endforeach
+                                </select>
+                                @error('kelas_id') <span class="invalid-feedback">{{ $message }}</span> @enderror
+                                <small class="text-muted d-block mt-1">Pilih kelas jika akun ini adalah Wali Kelas. Kelas yang sudah mempunyai wali dinonaktifkan.</small>
+                            </div>
+                        </div>
+
+                        <!-- AREA KHUSUS KAPRODI -->
+                        <div id="kaprodiSection" style="display: none; margin-top: 1rem;">
+                            <div class="form-group">
+                                <label>Jurusan yang diampu (Kaprodi)</label>
+                                <select name="jurusan_id" id="jurusanSelect" class="form-control @error('jurusan_id') is-invalid @enderror">
+                                    <option value="">-- Pilih Jurusan --</option>
+                                    @foreach($jurusan as $j)
+                                        <option value="{{ $j->id }}" data-kaprodi-id="{{ $j->kaprodi_user_id ?? '' }}" data-kaprodi-name="{{ optional($j->kaprodi)->nama ?? '' }}" {{ old('jurusan_id') == $j->id ? 'selected' : '' }}>{{ $j->nama_jurusan }}@if($j->kaprodi_user_id) — (dipegang oleh: {{ optional($j->kaprodi)->username ?? '—' }})@endif</option>
+                                    @endforeach
+                                </select>
+                                @error('jurusan_id') <span class="invalid-feedback">{{ $message }}</span> @enderror
+                                <small class="text-muted d-block mt-1">Pilih jurusan jika akun ini adalah Kaprodi. Jurusan yang sudah mempunyai Kaprodi dinonaktifkan.</small>
+                            </div>
+                        </div>
+
                         <hr>
 
                         <!-- ========================================== -->
-                        <!-- AREA KHUSUS ORANG TUA (KONSEP BARU)        -->
+                        <!-- AREA KHUSUS WALI MURID (KONSEP BARU)        -->
                         <!-- ========================================== -->
                         <div id="siswaSection" style="display: none;">
                             <div class="card border-primary">
@@ -201,7 +198,7 @@
                                 </div>
                             </div>
                         </div>
-                        <!-- END AREA ORANG TUA -->
+                        <!-- END AREA WALI MURID -->
 
                     </div>
 
@@ -217,92 +214,58 @@
 @endsection
 
 @push('scripts')
-<script>
-    $(document).ready(function() {
-        // 1. Logika Tampilkan/Sembunyikan Section Orang Tua
-        $('#roleSelect').on('change', function() {
-            var text = $(this).find("option:selected").text();
-            if(text.includes('Orang Tua')) {
-                $('#siswaSection').slideDown();
-            } else {
-                $('#siswaSection').slideUp();
-                // Opsional: Uncheck semua jika bukan orang tua
-                // $('.student-checkbox').prop('checked', false);
-            }
-        }).trigger('change');
+    <script>
+        (function(){
+            const roleSelect = document.getElementById('roleSelect');
+            const kaprodiSection = document.getElementById('kaprodiSection');
+            const jurusanSelect = document.getElementById('jurusanSelect');
+            const waliSection = document.getElementById('waliSection');
+            const kelasSelect = document.getElementById('kelasSelect');
 
-        // 2. LOGIKA FILTERING REAL-TIME
-        function filterList() {
-            var fTingkat = $('#filterTingkat').val();
-            var fJurusan = $('#filterJurusan').val();
-            var fKelas = $('#filterKelas').val();
-            var fSearch = $('#searchSiswa').val().toLowerCase();
-
-            var visibleCount = 0;
-
-            // Loop setiap item siswa
-            $('.student-item').each(function() {
-                var item = $(this);
-                var sTingkat = item.data('tingkat');
-                var sJurusan = item.data('jurusan');
-                var sKelas = item.data('kelas');
-                var sSearch = item.data('search');
-
-                var match = true;
-
-                // Cek Filter Dropdown
-                if(fTingkat && sTingkat != fTingkat) match = false;
-                if(fJurusan && sJurusan != fJurusan) match = false;
-                if(fKelas && sKelas != fKelas) match = false;
-
-                // Cek Pencarian Teks (Nama/NISN)
-                if(fSearch && !sSearch.includes(fSearch)) match = false;
-
-                // Tampilkan/Sembunyikan
-                if(match) {
-                    item.show();
-                    visibleCount++;
+            function toggleSections() {
+                const opt = roleSelect.options[roleSelect.selectedIndex];
+                const roleName = opt ? opt.dataset.roleName : '';
+                // Kaprodi
+                if (roleName === 'Kaprodi') {
+                    kaprodiSection.style.display = '';
                 } else {
-                    item.hide();
+                    kaprodiSection.style.display = 'none';
+                    if (jurusanSelect) jurusanSelect.value = '';
                 }
-            });
 
-            // Tampilkan pesan jika kosong
-            if(visibleCount === 0) {
-                $('#noResultMsg').show();
-            } else {
-                $('#noResultMsg').hide();
-            }
-        }
-
-        // Pasang Event Listener ke semua input filter
-        $('#filterTingkat, #filterJurusan, #filterKelas').on('change', filterList);
-        $('#searchSiswa').on('keyup', filterList);
-
-        // 3. Helper: Filter Dropdown Kelas berdasarkan Jurusan
-        $('#filterJurusan').on('change', function() {
-            var jurId = $(this).val();
-            $('#filterKelas option').each(function() {
-                var kJur = $(this).data('jurusan');
-                if($(this).val() == "" || !jurId || kJur == jurId) {
-                    $(this).show();
+                // Wali Kelas
+                if (roleName === 'Wali Kelas') {
+                    waliSection.style.display = '';
                 } else {
-                    $(this).hide();
+                    waliSection.style.display = 'none';
+                    if (kelasSelect) kelasSelect.value = '';
                 }
-            });
-            $('#filterKelas').val(''); // Reset kelas saat jurusan berubah
-            filterList(); // Jalankan filter ulang
-        });
-    });
+            }
 
-    // Fungsi Reset
-    function resetFilters() {
-        $('#filterTingkat').val('');
-        $('#filterJurusan').val('');
-        $('#filterKelas').val('');
-        $('#searchSiswa').val('');
-        // Trigger change agar list ter-refresh
-        $('#filterJurusan').trigger('change');
-    }
-</script>
+            function disableAssignedJurusan() {
+                if (!jurusanSelect) return;
+                for (let i = 0; i < jurusanSelect.options.length; i++) {
+                    const opt = jurusanSelect.options[i];
+                    const kaprodiId = opt.dataset.kaprodiId || '';
+                    if (kaprodiId && kaprodiId !== '') {
+                        opt.disabled = true;
+                    }
+                }
+            }
+
+            function disableAssignedKelas() {
+                if (!kelasSelect) return;
+                for (let i = 0; i < kelasSelect.options.length; i++) {
+                    const opt = kelasSelect.options[i];
+                    const waliId = opt.dataset.waliId || '';
+                    if (waliId && waliId !== '') {
+                        opt.disabled = true;
+                    }
+                }
+            }
+
+            roleSelect.addEventListener('change', toggleSections);
+            document.addEventListener('DOMContentLoaded', function(){ toggleSections(); disableAssignedJurusan(); disableAssignedKelas(); });
+        })();
+    </script>
 @endpush

@@ -2,6 +2,11 @@
 
 @section('title', 'Manajemen Pengguna')
 
+@section('styles')
+    <link rel="stylesheet" href="{{ asset('css/pages/users/index.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/pages/users/filters.css') }}">
+@endsection
+
 @section('content')
 
     <!-- HEADER & TOMBOL TAMBAH -->
@@ -24,7 +29,7 @@
     </div>
 
     <!-- CARD FILTER (PENCARIAN LANJUTAN) -->
-    <div class="card card-outline card-primary collapsed-card">
+    <div id="stickyFilter" class="card card-outline card-primary collapsed-card">
         <div class="card-header">
             <h3 class="card-title"><i class="fas fa-filter mr-1"></i> Filter & Pencarian</h3>
             <div class="card-tools">
@@ -34,58 +39,7 @@
             </div>
         </div>
         <div class="card-body" style="background-color: #f4f6f9;">
-            <form action="{{ route('users.index') }}" method="GET">
-                <div class="row">
-                    
-                    <!-- 1. Filter Role -->
-                    <div class="col-md-4">
-                        <div class="form-group">
-                            <label>Role (Jabatan)</label>
-                            <select name="role_id" class="form-control">
-                                <option value="">- Semua Role -</option>
-                                @foreach($roles as $role)
-                                    <option value="{{ $role->id }}" {{ request('role_id') == $role->id ? 'selected' : '' }}>
-                                        {{ $role->nama_role }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- 2. Cari Nama / Username -->
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label>Cari Nama / Username / Email</label>
-                            <div class="input-group">
-                                <input type="text" name="cari" class="form-control" placeholder="Ketik kata kunci..." value="{{ request('cari') }}">
-                                <div class="input-group-append">
-                                    <span class="input-group-text"><i class="fas fa-search"></i></span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- TOMBOL AKSI -->
-                    <div class="col-md-2 d-flex align-items-end">
-                        <div class="form-group w-100">
-                            <button type="submit" class="btn btn-primary w-100">
-                                <i class="fas fa-filter mr-1"></i> Terapkan
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Tombol Reset (Muncul jika sedang memfilter) -->
-                @if(request()->has('cari') || request()->has('role_id'))
-                    <div class="row">
-                        <div class="col-12 text-right">
-                            <a href="{{ route('users.index') }}" class="text-danger small">
-                                <i class="fas fa-undo mr-1"></i> Reset Filter
-                            </a>
-                        </div>
-                    </div>
-                @endif
-            </form>
+            @include('components.users.filter-form')
         </div>
     </div>
 
@@ -144,8 +98,8 @@
                                 <span class="badge badge-danger">Kepsek</span>
                             @elseif($u->role->nama_role == 'Wali Kelas')
                                 <span class="badge badge-warning">Wali Kelas</span>
-                            @elseif($u->role->nama_role == 'Orang Tua')
-                                <span class="badge badge-success" style="background-color: #28a745;">Orang Tua</span>
+                            @elseif($u->role->nama_role == 'Wali Murid')
+                                <span class="badge badge-success" style="background-color: #28a745;">Wali Murid</span>
                             @elseif($u->role->nama_role == 'Guru')
                                 <span class="badge badge-secondary">Guru</span>
                             @else
@@ -198,3 +152,9 @@
     </div>
 
 @endsection
+
+@push('scripts')
+    <!-- Load Filter Module First -->
+    <script src="{{ asset('js/pages/users/filters.js') }}"></script>
+    <script src="{{ asset('js/pages/users/index.js') }}"></script>
+@endpush

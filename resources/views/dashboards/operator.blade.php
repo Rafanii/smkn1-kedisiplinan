@@ -68,12 +68,25 @@
             </div>
         </div>
 
-        <!-- CARD KELAS (DISABLED / COMING SOON) -->
+        <!-- CARD JURUSAN -->
         <div class="col-lg-3 col-6">
-            <div class="small-box bg-secondary shadow">
-                <div class="overlay dark">
-                    <i class="fas fa-lock fa-3x"></i>
+            <div class="small-box bg-warning shadow">
+                <div class="inner">
+                    <h3>{{ $totalJurusan }}</h3>
+                    <p>Data Jurusan</p>
                 </div>
+                <div class="icon">
+                    <i class="fas fa-layer-group"></i>
+                </div>
+                <a href="{{ route('jurusan.index') }}" class="small-box-footer">
+                    Kelola Jurusan <i class="fas fa-arrow-circle-right"></i>
+                </a>
+            </div>
+        </div>
+
+        <!-- CARD KELAS -->
+        <div class="col-lg-3 col-6">
+            <div class="small-box bg-primary shadow">
                 <div class="inner">
                     <h3>{{ $totalKelas }}</h3>
                     <p>Data Kelas</p>
@@ -81,8 +94,8 @@
                 <div class="icon">
                     <i class="fas fa-school"></i>
                 </div>
-                <a href="#" class="small-box-footer">
-                    Fitur Terkunci <i class="fas fa-ban"></i>
+                <a href="{{ route('kelas.index') }}" class="small-box-footer">
+                    Kelola Kelas <i class="fas fa-arrow-circle-right"></i>
                 </a>
             </div>
         </div>
@@ -90,7 +103,30 @@
 
     <hr>
 
-    <!-- BAGIAN 2: SHORTCUT CEPAT -->
+    <!-- BAGIAN 2: AUDIT & MANAJEMEN -->
+    <h5 class="mb-3 text-dark font-weight-bold"><i class="fas fa-tools text-danger mr-2"></i> Audit & Manajemen</h5>
+    
+    <div class="row">
+        <!-- CARD AUDIT SISWA -->
+        <div class="col-lg-3 col-6">
+            <div class="small-box bg-danger shadow">
+                <div class="inner">
+                    <h4>Audit Siswa</h4>
+                    <p>Kelola Penghapusan Data</p>
+                </div>
+                <div class="icon">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <a href="{{ route('audit.siswa') }}" class="small-box-footer">
+                    Buka Audit <i class="fas fa-arrow-circle-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <hr>
+
+    <!-- BAGIAN 3: SHORTCUT CEPAT -->
     <h5 class="mb-3 text-dark font-weight-bold"><i class="fas fa-rocket text-warning mr-2"></i> Aksi Cepat</h5>
     
     <div class="row">
@@ -99,7 +135,7 @@
                 <span class="badge bg-purple">Baru</span>
                 <i class="fas fa-user-plus text-purple" style="font-size: 2rem; float: right;"></i>
                 <strong>Tambah User</strong><br>
-                Daftarkan Guru/Ortu baru
+                Daftarkan Guru/Wali Murid baru
             </a>
         </div>
         

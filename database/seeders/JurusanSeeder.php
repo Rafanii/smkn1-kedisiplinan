@@ -18,38 +18,16 @@ class JurusanSeeder extends Seeder
         // 1. Kosongkan tabel dulu
         DB::table('jurusan')->truncate();
 
-        // 2. Ambil ID Kaprodi yang sudah kita buat di UserSeeder
-        $kaprodiATP = User::where('username', 'kaprodi.atp')->first()->id;
-        $kaprodiAPHP = User::where('username', 'kaprodi.aphp')->first()->id;
-        $kaprodiATU = User::where('username', 'kaprodi.atu')->first()->id;
-        $kaprodiTEB = User::where('username', 'kaprodi.teb')->first()->id;
-        $kaprodiAKL = User::where('username', 'kaprodi.akl')->first()->id;
-
-        // 3. Buat 5 Jurusan
+        // 2. Buat 5 Jurusan (kode_jurusan diset eksplisit)
         $jurusan = [
-            [
-                'kaprodi_user_id' => $kaprodiATP,
-                'nama_jurusan' => 'Agribisnis Tanaman Perkebunan (ATP)'
-            ],
-            [
-                'kaprodi_user_id' => $kaprodiAPHP,
-                'nama_jurusan' => 'Agribisnis Pengolahan Hasil Pertanian (APHP)'
-            ],
-            [
-                'kaprodi_user_id' => $kaprodiATU,
-                'nama_jurusan' => 'Agribisnis Ternak Unggas (ATU)'
-            ],
-            [
-                'kaprodi_user_id' => $kaprodiTEB,
-                'nama_jurusan' => 'Teknik Energi Biomassa (TEB)'
-            ],
-            [
-                'kaprodi_user_id' => $kaprodiAKL,
-                'nama_jurusan' => 'Akuntansi dan Keuangan Lembaga (AKL)'
-            ],
+            ['kode_jurusan' => 'ATP', 'nama_jurusan' => 'Agribisnis Tanaman Perkebunan (ATP)'],
+            ['kode_jurusan' => 'APHP', 'nama_jurusan' => 'Agribisnis Pengolahan Hasil Pertanian (APHP)'],
+            ['kode_jurusan' => 'ATU', 'nama_jurusan' => 'Agribisnis Ternak Unggas (ATU)'],
+            ['kode_jurusan' => 'TEB', 'nama_jurusan' => 'Teknik Energi Biomassa (TEB)'],
+            ['kode_jurusan' => 'AKL', 'nama_jurusan' => 'Akuntansi dan Keuangan Lembaga (AKL)'],
         ];
 
-        // 4. Masukkan ke database
+        // 3. Masukkan ke database (tanpa membuat user Kaprodi di seeder)
         foreach ($jurusan as $j) {
             Jurusan::create($j);
         }

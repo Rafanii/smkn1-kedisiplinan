@@ -17,7 +17,6 @@ class RiwayatController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        $role = $user->role->nama_role;
 
         // 1. Siapkan Data untuk Dropdown Filter
         $allJurusan = Jurusan::all();
@@ -38,7 +37,7 @@ class RiwayatController extends Controller
         // LOGIKA HAK AKSES DATA (DATA SCOPING)
         // ====================================================
 
-        if ($role == 'Wali Kelas') {
+        if ($user->hasRole('Wali Kelas')) {
             $kelasBinaan = $user->kelasDiampu;
             if ($kelasBinaan) {
                 $query->whereHas('siswa', function($q) use ($kelasBinaan) {
@@ -47,8 +46,7 @@ class RiwayatController extends Controller
             } else {
                 $query->where('id', 0); 
             }
-        } 
-        elseif ($role == 'Kaprodi') {
+        } elseif ($user->hasRole('Kaprodi')) {
             $jurusanBinaan = $user->jurusanDiampu;
             if ($jurusanBinaan) {
                 $query->whereHas('siswa.kelas', function($q) use ($jurusanBinaan) {
@@ -57,8 +55,7 @@ class RiwayatController extends Controller
             } else {
                  $query->where('id', 0);
             }
-        }
-        elseif ($role == 'Orang Tua') {
+        } elseif ($user->hasRole('Wali Murid')) {
             $anakIds = $user->anakWali->pluck('id');
             $query->whereIn('siswa_id', $anakIds);
         }
@@ -86,14 +83,14 @@ class RiwayatController extends Controller
         }
 
         // 4. Filter Kelas (Hanya berlaku jika user BUKAN Wali Kelas)
-        if ($role != 'Wali Kelas' && $request->filled('kelas_id')) {
+        if (!$user->hasRole('Wali Kelas') && $request->filled('kelas_id')) {
             $query->whereHas('siswa', function($q) use ($request) {
                 $q->where('kelas_id', $request->kelas_id);
             });
         }
         
         // 5. Filter Jurusan (Hanya berlaku jika user BUKAN Kaprodi/Wali Kelas)
-        if (!in_array($role, ['Wali Kelas', 'Kaprodi']) && $request->filled('jurusan_id')) {
+        if (!$user->hasAnyRole(['Wali Kelas', 'Kaprodi']) && $request->filled('jurusan_id')) {
             $query->whereHas('siswa.kelas', function($q) use ($request) {
                 $q->where('jurusan_id', $request->jurusan_id);
             });
