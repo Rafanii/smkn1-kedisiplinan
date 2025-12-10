@@ -93,3 +93,6 @@ php artisan developer:cleanup --remove-role
 ```
 
 Keep this workflow in your project notes and ensure `Developer` role is not present in production.
+
+contoh untuk membuat akun dengan role developer:
+php artisan developer:enable --email=developer@local --password=password
