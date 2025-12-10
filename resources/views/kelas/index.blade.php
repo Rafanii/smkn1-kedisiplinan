@@ -15,9 +15,11 @@
         <div class="alert alert-success">{{ session('success') }}</div>
     @endif
 
+    @if(auth()->user()->hasRole('Operator Sekolah'))
     <div class="mb-3">
         <a href="{{ route('kelas.create') }}" class="btn btn-primary">Tambah Kelas</a>
     </div>
+    @endif
 
     @if(session('wali_created'))
         @php $w = session('wali_created'); @endphp
@@ -45,16 +47,18 @@
                         <tr>
                             <td>{{ $k->nama_kelas }}</td>
                             <td>{{ $k->jurusan?->nama_jurusan ?? '-' }}</td>
-                            <td>{{ $k->waliKelas?->nama ?? '-' }}</td>
+                            <td>{{ $k->waliKelas?->username ?? '-' }}</td>
                             <td>{{ $k->siswa()->count() }}</td>
                             <td>
                                 <a href="{{ route('kelas.show', $k) }}" class="btn btn-sm btn-info">Detail</a>
+                                @if(auth()->user()->hasRole('Operator Sekolah'))
                                 <a href="{{ route('kelas.edit', $k) }}" class="btn btn-sm btn-warning">Edit</a>
                                 <form action="{{ route('kelas.destroy', $k) }}" method="POST" style="display:inline-block;" onsubmit="return confirm('Hapus kelas ini?');">
                                     @csrf
                                     @method('DELETE')
                                     <button class="btn btn-sm btn-danger">Hapus</button>
                                 </form>
+                                @endif
                             </td>
                         </tr>
                     @empty

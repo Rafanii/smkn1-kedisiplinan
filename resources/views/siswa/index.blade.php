@@ -10,11 +10,11 @@
 @section('content')
 
     @php
-        $userRole = Auth::user()->role->nama_role;
-        $isOperator = ($userRole == 'Operator Sekolah');
-        $isWaliKelas = ($userRole == 'Wali Kelas');
-        $isWaka = ($userRole == 'Waka Kesiswaan');
-        $isKaprodi = ($userRole == 'Kaprodi');
+        $userRole = Auth::user()->effectiveRoleName() ?? Auth::user()->role?->nama_role;
+        $isOperator = Auth::user()->hasRole('Operator Sekolah');
+        $isWaliKelas = Auth::user()->hasRole('Wali Kelas');
+        $isWaka = Auth::user()->hasRole('Waka Kesiswaan');
+        $isKaprodi = Auth::user()->hasRole('Kaprodi');
     @endphp
 
     <div class="container-fluid">
@@ -43,11 +43,8 @@
                     <a href="{{ route('siswa.create') }}" class="btn btn-primary btn-sm shadow-sm mr-2">
                         <i class="fas fa-plus mr-1"></i> Tambah Siswa
                     </a>
-                    <a href="{{ route('siswa.bulk.create') }}" class="btn btn-outline-primary btn-sm shadow-sm mr-2">
+                    <a href="{{ route('siswa.bulk-create') }}" class="btn btn-outline-primary btn-sm shadow-sm">
                         <i class="fas fa-copy mr-1"></i> Tambah Banyak
-                    </a>
-                    <a href="{{ route('audit.siswa') }}" class="btn btn-danger btn-sm shadow-sm">
-                        <i class="fas fa-shield-alt mr-1"></i> Audit & Hapus
                     </a>
                     @endif
                 </div>
@@ -104,7 +101,9 @@
                             <td>{{ $siswa->firstItem() + $key }}</td>
                             <td><code>{{ $s->nisn }}</code></td>
                             <td>
-                                <span class="font-weight-bold text-dark">{{ $s->nama_siswa }}</span>
+                                <a href="{{ route('siswa.show', $s->id) }}" class="font-weight-bold text-primary">
+                                    {{ $s->nama_siswa }}
+                                </a>
                                 @if($isWaliKelas && !$s->waliMurid)
                                     <i class="fas fa-exclamation-circle text-danger ml-1" title="Akun Wali Murid belum dihubungkan oleh Operator"></i>
                                 @endif

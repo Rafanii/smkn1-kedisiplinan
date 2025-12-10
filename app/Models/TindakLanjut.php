@@ -7,22 +7,34 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Spatie\Activitylog\Traits\LogsActivity;
-use Spatie\Activitylog\LogOptions;
+use App\Traits\LogsActivity;
 
 class TindakLanjut extends Model
 {
     use HasFactory, SoftDeletes, LogsActivity;
 
     /**
-     * Configure activity log options for TindakLanjut model.
+     * Get attributes to log for activity tracking
      */
-    public function getActivitylogOptions(): LogOptions
+    protected function getLogAttributes(): array
     {
-        return LogOptions::defaults()
-            ->logOnly(['siswa_id', 'status', 'pemicu', 'tanggal_tindak_lanjut'])
-            ->useLogName('tindak_lanjut')
-            ->logOnlyDirty();
+        return ['siswa_id', 'status', 'pemicu', 'tanggal_tindak_lanjut'];
+    }
+
+    /**
+     * Get custom activity description
+     */
+    protected function getActivityDescription(string $eventName): string
+    {
+        $userName = auth()->user()?->nama ?? 'System';
+        $siswaName = $this->siswa?->nama_siswa ?? 'Siswa';
+        
+        return match($eventName) {
+            'created' => "{$userName} membuat tindak lanjut untuk {$siswaName}",
+            'updated' => "{$userName} mengubah tindak lanjut {$siswaName} (Status: {$this->status})",
+            'deleted' => "{$userName} menghapus tindak lanjut {$siswaName}",
+            default => parent::getActivityDescription($eventName),
+        };
     }
 
     /**
@@ -57,9 +69,7 @@ class TindakLanjut extends Model
      */
     protected $casts = [
         'tanggal_tindak_lanjut' => 'date',
-        // 'status' akan otomatis dicast oleh Laravel 11+ jika 
-        // Anda menggunakan Enum di migrasi, tapi ini cara eksplisitnya
-        // jika masih string.
+        'status' => \App\Enums\StatusTindakLanjut::class,
     ];
 
     // =====================================================================
@@ -91,5 +101,97 @@ class TindakLanjut extends Model
     public function suratPanggilan(): HasOne
     {
         return $this->hasOne(SuratPanggilan::class, 'tindak_lanjut_id');
+    }
+
+    // =====================================================================
+    // ----------------------- QUERY SCOPES -----------------------
+    // =====================================================================
+
+    /**
+     * Scope: Filter kasus yang sedang menunggu persetujuan Kepala Sekolah.
+     */
+    public function scopePendingApproval($query)
+    {
+        return $query->where('status', 'Menunggu Persetujuan');
+    }
+
+    /**
+     * Scope: Filter kasus yang sudah disetujui.
+     */
+    public function scopeApproved($query)
+    {
+        return $query->where('status', 'Disetujui');
+    }
+
+    /**
+     * Scope: Filter kasus yang sedang ditangani.
+     */
+    public function scopeInProgress($query)
+    {
+        return $query->where('status', 'Ditangani');
+    }
+
+    /**
+     * Scope: Filter kasus yang sudah selesai.
+     */
+    public function scopeCompleted($query)
+    {
+        return $query->where('status', 'Selesai');
+    }
+
+    /**
+     * Scope: Filter kasus berdasarkan status tertentu.
+     */
+    public function scopeByStatus($query, $status)
+    {
+        if ($status) {
+            $query->where('status', $status);
+        }
+        return $query;
+    }
+
+    /**
+     * Scope: Filter kasus untuk siswa tertentu.
+     */
+    public function scopeBySiswa($query, $siswaId)
+    {
+        if ($siswaId) {
+            $query->where('siswa_id', $siswaId);
+        }
+        return $query;
+    }
+
+    /**
+     * Scope: Filter kasus untuk siswa dalam kelas tertentu.
+     */
+    public function scopeInKelas($query, $kelasId)
+    {
+        if ($kelasId) {
+            $query->whereHas('siswa', function ($q) use ($kelasId) {
+                $q->where('kelas_id', $kelasId);
+            });
+        }
+        return $query;
+    }
+
+    /**
+     * Scope: Filter kasus untuk siswa dalam jurusan tertentu.
+     */
+    public function scopeInJurusan($query, $jurusanId)
+    {
+        if ($jurusanId) {
+            $query->whereHas('siswa.kelas', function ($q) use ($jurusanId) {
+                $q->where('jurusan_id', $jurusanId);
+            });
+        }
+        return $query;
+    }
+
+    /**
+     * Scope: Filter kasus aktif (belum selesai).
+     */
+    public function scopeActive($query)
+    {
+        return $query->whereIn('status', ['Baru', 'Menunggu Persetujuan', 'Disetujui', 'Ditangani']);
     }
 }

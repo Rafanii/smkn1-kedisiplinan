@@ -14,25 +14,44 @@
             const jurusanSelect = document.getElementById('jurusanSelect');
             const waliSection = document.getElementById('waliSection');
             const kelasSelect = document.getElementById('kelasSelect');
+            const nipSection = document.getElementById('nipSection');
             const currentUserId = '{{ $user->id }}';
 
             function toggleSections() {
                 const opt = roleSelect.options[roleSelect.selectedIndex];
                 const roleName = opt ? opt.dataset.roleName : '';
-                // Kaprodi
-                if (roleName === 'Kaprodi') {
+                
+                // Kaprodi atau Developer
+                if (roleName === 'Kaprodi' || roleName === 'Developer') {
                     kaprodiSection.style.display = '';
                 } else {
                     kaprodiSection.style.display = 'none';
                     if (jurusanSelect) jurusanSelect.value = '';
                 }
 
-                // Wali Kelas
-                if (roleName === 'Wali Kelas') {
+                // Wali Kelas atau Developer
+                if (roleName === 'Wali Kelas' || roleName === 'Developer') {
                     waliSection.style.display = '';
                 } else {
                     waliSection.style.display = 'none';
                     if (kelasSelect) kelasSelect.value = '';
+                }
+
+                // Wali Murid atau Developer
+                const siswaSection = document.getElementById('siswaSection');
+                if (roleName === 'Wali Murid' || roleName === 'Developer') {
+                    siswaSection.style.display = '';
+                } else {
+                    siswaSection.style.display = 'none';
+                }
+
+                // NIP/NUPTK Section - Hide untuk Wali Murid
+                if (nipSection) {
+                    if (roleName === 'Wali Murid') {
+                        nipSection.style.display = 'none';
+                    } else {
+                        nipSection.style.display = '';
+                    }
                 }
             }
 
@@ -81,13 +100,24 @@
                 <!-- BAGIAN 1: DATA AKUN -->
                 <h5 class="text-muted mb-3"><i class="fas fa-id-card mr-1"></i> Data Akun</h5>
 
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    <strong>Informasi:</strong>
+                    <ul class="mb-0 mt-2">
+                        <li><strong>Nama</strong> akan di-generate otomatis berdasarkan role dan konfigurasi (selalu update saat konfigurasi berubah).</li>
+                        <li><strong>Username</strong> akan di-generate otomatis hanya jika user belum pernah mengubahnya sendiri.</li>
+                        <li><strong>Password</strong> akan di-generate otomatis hanya jika user belum pernah mengubahnya sendiri.</li>
+                    </ul>
+                </div>
+
                 <div class="row">
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label>Nama Lengkap <span class="text-danger">*</span></label>
+                            <label>Nama <span class="text-danger">*</span></label>
                             <input type="text" name="nama" class="form-control @error('nama') is-invalid @enderror" 
                                    value="{{ old('nama', $user->nama) }}" required>
                             @error('nama') <span class="invalid-feedback">{{ $message }}</span> @enderror
+                            <small class="text-muted">Nama hanya digunakan sebagai tanda pengenal untuk operator. Yang ditampilkan di sistem adalah username.</small>
                         </div>
                     </div>
                     <div class="col-md-6">
@@ -96,11 +126,12 @@
                             <select name="role_id" id="roleSelect" class="form-control @error('role_id') is-invalid @enderror" required>
                                 @foreach($roles as $role)
                                     @php
-                                        $isKepsek = $role->nama_role === 'Kepala Sekolah';
+                                        $roleName = $role->nama_role ?? 'N/A';
+                                        $isKepsek = $roleName === 'Kepala Sekolah';
                                         $disabled = ($isKepsek && isset($kepsekExists) && $kepsekExists && (!isset($kepsekId) || $kepsekId != $user->id)) ? 'disabled' : '';
                                     @endphp
-                                    <option value="{{ $role->id }}" data-role-name="{{ $role->nama_role }}" {{ (old('role_id', $user->role_id) == $role->id) ? 'selected' : '' }} {{ $disabled }}>
-                                        {{ $role->nama_role }}@if($isKepsek && isset($kepsekExists) && $kepsekExists && (!isset($kepsekId) || $kepsekId != $user->id)) — (dipegang oleh: {{ $kepsekUsername ?? '—' }})@endif
+                                    <option value="{{ $role->id }}" data-role-name="{{ $roleName }}" {{ (old('role_id', $user->role_id) == $role->id) ? 'selected' : '' }} {{ $disabled }}>
+                                        {{ $roleName }}@if($isKepsek && isset($kepsekExists) && $kepsekExists && (!isset($kepsekId) || $kepsekId != $user->id)) — (dipegang oleh: {{ $kepsekUsername ?? '—' }})@endif
                                     </option>
                                 @endforeach
                             </select>
@@ -116,6 +147,28 @@
                             <input type="text" name="username" class="form-control @error('username') is-invalid @enderror" 
                                    value="{{ old('username', $user->username) }}" required>
                             @error('username') <span class="invalid-feedback">{{ $message }}</span> @enderror
+                            @if($user->hasChangedUsername())
+                                <small class="text-success">
+                                    <i class="fas fa-check-circle"></i> Username sudah diubah oleh user.
+                                </small>
+                            @else
+                                <small class="text-muted">Username belum pernah diubah oleh user (masih default).</small>
+                            @endif
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Password Baru (Opsional)</label>
+                            <input type="password" name="password" class="form-control @error('password') is-invalid @enderror" 
+                                   placeholder="Kosongkan jika tidak ingin mengubah">
+                            @error('password') <span class="invalid-feedback">{{ $message }}</span> @enderror
+                            @if($user->hasChangedPassword())
+                                <small class="text-success">
+                                    <i class="fas fa-check-circle"></i> Password sudah diubah oleh user.
+                                </small>
+                            @else
+                                <small class="text-muted">Password belum pernah diubah oleh user (masih default).</small>
+                            @endif
                         </div>
                     </div>
                     <div class="col-md-4">
@@ -128,21 +181,68 @@
                     </div>
                     <div class="col-md-4">
                         <div class="form-group">
-                            <label>Password Baru</label>
-                            <input type="password" name="password" class="form-control @error('password') is-invalid @enderror" placeholder="Kosongkan jika tidak ganti">
-                            <small class="text-muted">Isi hanya jika ingin mengubah password.</small>
-                            @error('password') <span class="invalid-feedback">{{ $message }}</span> @enderror
+                            <label>Nomor HP / Kontak (Opsional)</label>
+                            <input type="text" name="phone" class="form-control @error('phone') is-invalid @enderror" 
+                                   value="{{ old('phone', $user->phone) }}" {{ $user->isWaliMurid() ? 'readonly' : '' }}>
+                            @error('phone') <span class="invalid-feedback">{{ $message }}</span> @enderror
+                            <small class="text-muted d-block">
+                                @if($user->isWaliMurid())
+                                    Kontak utama wali murid diambil dari data siswa (nomor HP wali murid).
+                                @else
+                                    Opsional, hanya untuk keperluan kontak internal.
+                                @endif
+                            </small>
                         </div>
                     </div>
+                </div>
+
+                <!-- TANDA PENGENAL KEPEGAWAIAN -->
+                <div id="nipSection">
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <h5 class="mb-3"><i class="fas fa-id-card mr-1"></i> Tanda Pengenal Kepegawaian (Opsional)</h5>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>NIP / NI PPPK (18 digit)</label>
+                                <input type="text" name="nip" class="form-control @error('nip') is-invalid @enderror" 
+                                       placeholder="Contoh: 197303222000122002" value="{{ old('nip', $user->nip) }}" maxlength="18">
+                                @error('nip') <span class="invalid-feedback">{{ $message }}</span> @enderror
+                                <small class="text-muted d-block">
+                                    Nomor Induk Pegawai (PNS) atau NI PPPK (Pegawai Kontrak)
+                                </small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>NUPTK (18 digit)</label>
+                                <input type="text" name="nuptk" class="form-control @error('nuptk') is-invalid @enderror" 
+                                       placeholder="Contoh: 123456789012345678" value="{{ old('nuptk', $user->nuptk) }}" maxlength="18">
+                                @error('nuptk') <span class="invalid-feedback">{{ $message }}</span> @enderror
+                                <small class="text-muted d-block">
+                                    Nomor Unik Pendidik dan Tenaga Kependidikan
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                Digunakan untuk tanda tangan surat resmi dan dokumen administrasi
+                            </div>
+                        </div>
                 </div>
 
                 <hr>
 
                 <!-- BAGIAN 2: HUBUNGKAN SISWA (KHUSUS WALI MURID) -->
-                <!-- BAGIAN KAPRODI: pilih jurusan jika user adalah Kaprodi -->
+                <!-- BAGIAN KAPRODI/DEVELOPER: pilih jurusan jika user adalah Kaprodi atau Developer -->
                 <div id="kaprodiSection" style="display:none; margin-bottom: 1rem;">
                     <div class="form-group">
-                        <label>Jurusan yang diampu (Kaprodi)</label>
+                        <label>Jurusan yang diampu (Kaprodi/Developer)</label>
                         <select name="jurusan_id" id="jurusanSelect" class="form-control @error('jurusan_id') is-invalid @enderror">
                             <option value="">-- Pilih Jurusan --</option>
                                 @foreach($jurusan as $j)
@@ -150,14 +250,14 @@
                             @endforeach
                         </select>
                         @error('jurusan_id') <span class="invalid-feedback">{{ $message }}</span> @enderror
-                        <small class="text-muted d-block mt-1">Pilih jurusan jika akun ini adalah Kaprodi. Jurusan yang sudah mempunyai Kaprodi lain dinonaktifkan.</small>
+                        <small class="text-muted d-block mt-1">Pilih jurusan jika akun ini adalah Kaprodi atau Developer. Jurusan yang sudah mempunyai Kaprodi lain dinonaktifkan.</small>
                     </div>
                 </div>
 
-                <!-- AREA KHUSUS WALI KELAS -->
+                <!-- AREA KHUSUS WALI KELAS/DEVELOPER -->
                 <div id="waliSection" style="display:none; margin-top: 1rem;">
                     <div class="form-group">
-                        <label>Kelas yang diampu (Wali Kelas)</label>
+                        <label>Kelas yang diampu (Wali Kelas/Developer)</label>
                         <select name="kelas_id" id="kelasSelect" class="form-control @error('kelas_id') is-invalid @enderror">
                             <option value="">-- Pilih Kelas --</option>
                             @foreach($kelas as $k)
@@ -165,14 +265,14 @@
                             @endforeach
                         </select>
                         @error('kelas_id') <span class="invalid-feedback">{{ $message }}</span> @enderror
-                        <small class="text-muted d-block mt-1">Pilih kelas jika akun ini adalah Wali Kelas. Kelas yang sudah mempunyai wali lain dinonaktifkan.</small>
+                        <small class="text-muted d-block mt-1">Pilih kelas jika akun ini adalah Wali Kelas atau Developer. Kelas yang sudah mempunyai wali lain dinonaktifkan.</small>
                     </div>
                 </div>
 
                 <div id="siswaSection" style="display: none;">
                     <div class="card border-warning">
                         <div class="card-header bg-warning text-dark py-2">
-                            <h3 class="card-title" style="font-size: 1rem;"><i class="fas fa-child mr-1"></i> Hubungkan Wali Murid dengan Siswa</h3>
+                            <h3 class="card-title" style="font-size: 1rem;"><i class="fas fa-child mr-1"></i> Hubungkan dengan Siswa (Wali Murid/Developer)</h3>
                         </div>
                         <div class="card-body bg-light">
                             
@@ -299,24 +399,47 @@
 
 @push('scripts')
     <script>
-        (function(){
-            const roleSelect = document.getElementById('roleSelect');
-            const kaprodiSection = document.getElementById('kaprodiSection');
+        // Filtering functions untuk daftar siswa
+        function resetFilters() {
+            document.getElementById('filterTingkat').value = '';
+            document.getElementById('filterJurusan').value = '';
+            document.getElementById('filterKelas').value = '';
+            document.getElementById('searchSiswa').value = '';
+            filterStudents();
+        }
 
-            function toggleKaprodi() {
-                const opt = roleSelect.options[roleSelect.selectedIndex];
-                const roleName = opt ? opt.dataset.roleName : '';
-                if (roleName === 'Kaprodi') {
-                    kaprodiSection.style.display = '';
-                } else {
-                    kaprodiSection.style.display = 'none';
-                    const sel = document.getElementById('jurusanSelect');
-                    if (sel) sel.value = '';
-                }
+        function filterStudents() {
+            const tingkat = document.getElementById('filterTingkat')?.value || '';
+            const jurusan = document.getElementById('filterJurusan')?.value || '';
+            const kelas = document.getElementById('filterKelas')?.value || '';
+            const search = document.getElementById('searchSiswa')?.value?.toLowerCase() || '';
+
+            const items = document.querySelectorAll('.student-item');
+            let visibleCount = 0;
+
+            items.forEach(item => {
+                let show = true;
+                if (tingkat && item.dataset.tingkat !== tingkat) show = false;
+                if (jurusan && item.dataset.jurusan !== jurusan) show = false;
+                if (kelas && item.dataset.kelas !== kelas) show = false;
+                if (search && !item.dataset.search.includes(search)) show = false;
+
+                item.style.display = show ? '' : 'none';
+                if (show) visibleCount++;
+            });
+
+            const noResultMsg = document.getElementById('noResultMsg');
+            if (noResultMsg) {
+                noResultMsg.style.display = visibleCount === 0 ? 'block' : 'none';
             }
+        }
 
-            roleSelect.addEventListener('change', toggleKaprodi);
-            document.addEventListener('DOMContentLoaded', toggleKaprodi);
-        })();
+        // Event listeners untuk filter
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('filterTingkat')?.addEventListener('change', filterStudents);
+            document.getElementById('filterJurusan')?.addEventListener('change', filterStudents);
+            document.getElementById('filterKelas')?.addEventListener('change', filterStudents);
+            document.getElementById('searchSiswa')?.addEventListener('keyup', filterStudents);
+        });
     </script>
 @endpush

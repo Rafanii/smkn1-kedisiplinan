@@ -88,7 +88,7 @@
                                     <td><code>{{ $user->username }}</code></td>
                                     <td><small class="text-muted">{{ $user->email }}</small></td>
                                     <td>
-                                        <span class="badge badge-secondary">{{ $user->role->nama_role ?? 'N/A' }}</span>
+                                        <span class="badge badge-secondary">{{ $user->role?->nama_role ?? 'N/A' }}</span>
                                     </td>
                                     <td class="text-center">
                                         @if($user->is_active ?? true)
@@ -99,7 +99,7 @@
                                     </td>
                                     <td class="text-center">
                                         <small class="text-muted">
-                                            {{ $user->last_login_at ? $user->last_login_at->diffForHumans() : 'Belum login' }}
+                                            {{ $user->last_login_at ? formatRelative($user->last_login_at) : 'Belum login' }}
                                         </small>
                                     </td>
                                     <td class="text-center">

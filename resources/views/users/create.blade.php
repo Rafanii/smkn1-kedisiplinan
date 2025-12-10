@@ -18,17 +18,31 @@
                 
                 <form action="{{ route('users.store') }}" method="POST">
                     @csrf
+                    
+                    {{-- Display Validation Errors --}}
+                    @if ($errors->any())
+                        <div class="alert alert-danger alert-dismissible fade show m-3" role="alert">
+                            <h5><i class="icon fas fa-ban"></i> Validasi Gagal!</h5>
+                            <ul class="mb-0">
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                    @endif
+                    
                     <div class="card-body">
                         
                         <!-- DATA AKUN -->
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            <strong>Informasi:</strong> Nama, Username, dan Password akan di-generate otomatis oleh sistem berdasarkan role dan konfigurasi yang Anda pilih.
+                        </div>
+
                         <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>Nama Lengkap <span class="text-danger">*</span></label>
-                                    <input type="text" name="nama" class="form-control @error('nama') is-invalid @enderror" placeholder="Masukkan nama lengkap" value="{{ old('nama') }}" required>
-                                    @error('nama') <span class="invalid-feedback">{{ $message }}</span> @enderror
-                                </div>
-                            </div>
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label>Role (Jabatan) <span class="text-danger">*</span></label>
@@ -36,37 +50,83 @@
                                         <option value="">-- Pilih Role --</option>
                                         @foreach($roles as $role)
                                             @php
-                                                $isKepsek = $role->nama_role === 'Kepala Sekolah';
+                                                $roleName = $role->nama_role ?? 'N/A';
+                                                $isKepsek = $roleName === 'Kepala Sekolah';
                                                 $disabled = ($isKepsek && isset($kepsekExists) && $kepsekExists) ? 'disabled' : '';
                                             @endphp
-                                            <option value="{{ $role->id }}" data-role-name="{{ $role->nama_role }}" {{ old('role_id') == $role->id ? 'selected' : '' }} {{ $disabled }}>{{ $role->nama_role }}@if($isKepsek && isset($kepsekExists) && $kepsekExists) — (dipegang oleh: {{ $kepsekUsername ?? '—' }})@endif</option>
+                                            <option value="{{ $role->id }}" data-role-name="{{ $roleName }}" {{ old('role_id') == $role->id ? 'selected' : '' }} {{ $disabled }}>{{ $roleName }}@if($isKepsek && isset($kepsekExists) && $kepsekExists) — (dipegang oleh: {{ $kepsekUsername ?? '—' }})@endif</option>
                                         @endforeach
                                     </select>
                                     @error('role_id') <span class="invalid-feedback">{{ $message }}</span> @enderror
                                 </div>
                             </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>Username <span class="text-danger">*</span></label>
-                                    <input type="text" name="username" class="form-control @error('username') is-invalid @enderror" placeholder="Username login" value="{{ old('username') }}" required>
-                                    @error('username') <span class="invalid-feedback">{{ $message }}</span> @enderror
-                                </div>
-                            </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <div class="form-group">
                                     <label>Email <span class="text-danger">*</span></label>
                                     <input type="email" name="email" class="form-control @error('email') is-invalid @enderror" placeholder="Alamat Email" value="{{ old('email') }}" required>
                                     @error('email') <span class="invalid-feedback">{{ $message }}</span> @enderror
+                                    <small class="text-muted d-block">
+                                        Email ini dapat diubah oleh user nantinya di halaman "Akun Saya".
+                                    </small>
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Nomor HP / Kontak (Opsional)</label>
+                                    <input type="text" name="phone" class="form-control @error('phone') is-invalid @enderror" placeholder="Contoh: 0812xxxxxxx" value="{{ old('phone') }}">
+                                    @error('phone') <span class="invalid-feedback">{{ $message }}</span> @enderror
+                                    <small class="text-muted d-block">
+                                        Untuk Wali Murid, kontak utama tetap diambil dari data siswa (nomor HP wali murid).
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
                                 <div class="form-group">
                                     <label>Password <span class="text-danger">*</span></label>
                                     <input type="text" name="password" class="form-control" value="123456" required>
                                     <small class="text-muted">Default: 123456</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TANDA PENGENAL KEPEGAWAIAN -->
+                        <div id="nipSection">
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <h5 class="mb-3"><i class="fas fa-id-card mr-1"></i> Tanda Pengenal Kepegawaian (Opsional)</h5>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>NIP / NI PPPK (18 digit)</label>
+                                        <input type="text" name="nip" class="form-control @error('nip') is-invalid @enderror" placeholder="Contoh: 197303222000122002" value="{{ old('nip') }}" maxlength="18">
+                                        @error('nip') <span class="invalid-feedback">{{ $message }}</span> @enderror
+                                        <small class="text-muted d-block">
+                                            Nomor Induk Pegawai (PNS) atau NI PPPK (Pegawai Kontrak)
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>NUPTK (18 digit)</label>
+                                        <input type="text" name="nuptk" class="form-control @error('nuptk') is-invalid @enderror" placeholder="Contoh: 123456789012345678" value="{{ old('nuptk') }}" maxlength="18">
+                                        @error('nuptk') <span class="invalid-feedback">{{ $message }}</span> @enderror
+                                        <small class="text-muted d-block">
+                                            Nomor Unik Pendidik dan Tenaga Kependidikan
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-info-circle mr-1"></i>
+                                        Digunakan untuk tanda tangan surat resmi dan dokumen administrasi
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -221,10 +281,13 @@
             const jurusanSelect = document.getElementById('jurusanSelect');
             const waliSection = document.getElementById('waliSection');
             const kelasSelect = document.getElementById('kelasSelect');
+            const nipSection = document.getElementById('nipSection');
+            const siswaSection = document.getElementById('siswaSection');
 
             function toggleSections() {
                 const opt = roleSelect.options[roleSelect.selectedIndex];
                 const roleName = opt ? opt.dataset.roleName : '';
+                
                 // Kaprodi
                 if (roleName === 'Kaprodi') {
                     kaprodiSection.style.display = '';
@@ -239,6 +302,25 @@
                 } else {
                     waliSection.style.display = 'none';
                     if (kelasSelect) kelasSelect.value = '';
+                }
+
+                // Wali Murid
+                if (roleName === 'Wali Murid') {
+                    siswaSection.style.display = '';
+                } else {
+                    siswaSection.style.display = 'none';
+                    // Uncheck all checkboxes
+                    const checkboxes = document.querySelectorAll('.student-checkbox');
+                    checkboxes.forEach(cb => cb.checked = false);
+                }
+
+                // NIP/NUPTK Section - Hide untuk Wali Murid
+                if (nipSection) {
+                    if (roleName === 'Wali Murid') {
+                        nipSection.style.display = 'none';
+                    } else {
+                        nipSection.style.display = '';
+                    }
                 }
             }
 
@@ -267,5 +349,60 @@
             roleSelect.addEventListener('change', toggleSections);
             document.addEventListener('DOMContentLoaded', function(){ toggleSections(); disableAssignedJurusan(); disableAssignedKelas(); });
         })();
+        
+        // Filter functionality for Wali Murid student list
+        function resetFilters() {
+            document.getElementById('filterTingkat').value = '';
+            document.getElementById('filterJurusan').value = '';
+            document.getElementById('filterKelas').value = '';
+            document.getElementById('searchSiswa').value = '';
+            filterStudents();
+        }
+        
+        function filterStudents() {
+            const tingkat = document.getElementById('filterTingkat').value.toLowerCase();
+            const jurusan = document.getElementById('filterJurusan').value;
+            const kelas = document.getElementById('filterKelas').value;
+            const search = document.getElementById('searchSiswa').value.toLowerCase();
+            
+            const items = document.querySelectorAll('.student-item');
+            let visibleCount = 0;
+            
+            items.forEach(item => {
+                const itemTingkat = item.dataset.tingkat.toLowerCase();
+                const itemJurusan = item.dataset.jurusan;
+                const itemKelas = item.dataset.kelas;
+                const itemSearch = item.dataset.search;
+                
+                let show = true;
+                
+                if (tingkat && !itemTingkat.includes(tingkat)) show = false;
+                if (jurusan && itemJurusan !== jurusan) show = false;
+                if (kelas && itemKelas !== kelas) show = false;
+                if (search && !itemSearch.includes(search)) show = false;
+                
+                item.style.display = show ? '' : 'none';
+                if (show) visibleCount++;
+            });
+            
+            // Show/hide no result message
+            const noResultMsg = document.getElementById('noResultMsg');
+            if (noResultMsg) {
+                noResultMsg.style.display = visibleCount === 0 ? 'block' : 'none';
+            }
+        }
+        
+        // Attach filter event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            const filterTingkat = document.getElementById('filterTingkat');
+            const filterJurusan = document.getElementById('filterJurusan');
+            const filterKelas = document.getElementById('filterKelas');
+            const searchSiswa = document.getElementById('searchSiswa');
+            
+            if (filterTingkat) filterTingkat.addEventListener('change', filterStudents);
+            if (filterJurusan) filterJurusan.addEventListener('change', filterStudents);
+            if (filterKelas) filterKelas.addEventListener('change', filterStudents);
+            if (searchSiswa) searchSiswa.addEventListener('input', filterStudents);
+        });
     </script>
 @endpush

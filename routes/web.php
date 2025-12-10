@@ -2,166 +2,161 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\LoginController;
-use App\Http\Controllers\Dashboard\AdminDashboardController;
-use App\Http\Controllers\Dashboard\KepsekDashboardController;
-use App\Http\Controllers\Dashboard\KaprodiDashboardController;
-use App\Http\Controllers\Dashboard\WaliKelasDashboardController;
-use App\Http\Controllers\Dashboard\WaliMuridDashboardController;
-use App\Http\Controllers\Dashboard\ApprovalController;
-use App\Http\Controllers\Dashboard\ReportController;
-use App\Http\Controllers\Dashboard\UserManagementController;
-use App\Http\Controllers\Dashboard\ActivityLogController;
-use App\Http\Controllers\PelanggaranController;
-use App\Http\Controllers\SiswaController;
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\JenisPelanggaranController;
-use App\Http\Controllers\TindakLanjutController;
-use App\Http\Controllers\RiwayatController;
-use App\Http\Controllers\JurusanController;
 
 /*
 |--------------------------------------------------------------------------
-| Web Routes (Fixed Roles & Permissions)
+| Web Routes (Core)
 |--------------------------------------------------------------------------
+|
+| Core application routes (Dashboard, Auth, Public pages).
+| Domain-specific routes are split into separate files:
+| - routes/siswa.php
+| - routes/pelanggaran.php
+| - routes/tindak_lanjut.php
+| - routes/user.php
+|
 */
 
-// --- 1. AUTHENTICATION ---
-Route::get('/', [LoginController::class, 'showLoginForm'])->name('login');
-Route::post('/', [LoginController::class, 'login']);
-Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+// ===================================================================
+// AUTHENTICATION ROUTES (Guest)
+// ===================================================================
 
-// --- 2. AREA TERPROTEKSI (LOGIN REQUIRED) ---
+Route::middleware('guest')->group(function () {
+    // Login
+    Route::get('/', [LoginController::class, 'showLoginForm'])
+        ->name('login');
+
+    Route::post('/', [LoginController::class, 'login'])
+        ->name('login.post');
+});
+
+// ===================================================================
+// AUTHENTICATED ROUTES
+// ===================================================================
+
 Route::middleware(['auth'])->group(function () {
+    
+    // Logout
+    Route::post('/logout', [LoginController::class, 'logout'])
+        ->name('logout');
+    
+    // ===================================================================
+    // DASHBOARD ROUTES (Role-based with Controllers)
+    // ===================================================================
+    
+    // Main dashboard (auto-redirect to role-specific dashboard)
+    Route::get('/dashboard', function () {
+        $user = auth()->user();
+        
+        // Role-based dashboard redirect
+        if ($user->hasAnyRole(['Waka Kesiswaan', 'Operator Sekolah'])) {
+            return redirect('/dashboard/admin');
+        } elseif ($user->hasRole('Kepala Sekolah')) {
+            return redirect('/dashboard/kepsek');
+        } elseif ($user->hasRole('Kaprodi')) {
+            return redirect('/dashboard/kaprodi');
+        } elseif ($user->hasRole('Wali Kelas')) {
+            return redirect('/dashboard/walikelas');
+        } elseif ($user->hasRole('Waka Sarana')) {
+            return redirect('/dashboard/waka-sarana');
+        } elseif ($user->hasRole('Guru')) {
+            return redirect('/pelanggaran/catat');
+        } elseif ($user->hasRole('Wali Murid')) {
+            return redirect('/dashboard/wali_murid');
+        } elseif ($user->hasRole('Developer')) {
+            return redirect('/dashboard/developer');
+        }
+        
+        // Fallback: redirect to admin dashboard
+        return redirect('/dashboard/admin');
+    })->name('dashboard');
 
-    // ====================================================
-    // A. DASHBOARD (SESUAI ROLE)
-    // ====================================================
-    Route::get('/dashboard/admin', [AdminDashboardController::class, 'index'])
-        ->middleware('role:Operator Sekolah,Waka Kesiswaan')
+    // Role-specific dashboards with REAL controllers & statistics
+    Route::get('/dashboard/admin', [\App\Http\Controllers\Dashboard\AdminDashboardController::class, 'index'])
         ->name('dashboard.admin');
 
-    Route::get('/dashboard/kepsek', [KepsekDashboardController::class, 'index'])
-        ->middleware('role:Kepala Sekolah')
+    Route::get('/dashboard/kepsek', [\App\Http\Controllers\Dashboard\KepsekDashboardController::class, 'index'])
         ->name('dashboard.kepsek');
 
-    Route::get('/dashboard/kaprodi', [KaprodiDashboardController::class, 'index'])
-        ->middleware('role:Kaprodi')
+    Route::get('/dashboard/kaprodi', [\App\Http\Controllers\Dashboard\KaprodiDashboardController::class, 'index'])
         ->name('dashboard.kaprodi');
 
-    Route::get('/dashboard/walikelas', [WaliKelasDashboardController::class, 'index'])
-        ->middleware('role:Wali Kelas')
+    Route::get('/dashboard/walikelas', [\App\Http\Controllers\Dashboard\WaliKelasDashboardController::class, 'index'])
         ->name('dashboard.walikelas');
 
-    Route::get('/dashboard/wali_murid', [WaliMuridDashboardController::class, 'index'])
-        ->middleware('role:Wali Murid')
+    Route::get('/dashboard/waka-sarana', [\App\Http\Controllers\Dashboard\WakaSaranaDashboardController::class, 'index'])
+        ->name('dashboard.waka-sarana');
+
+    Route::get('/dashboard/wali_murid', [\App\Http\Controllers\Dashboard\WaliMuridDashboardController::class, 'index'])
         ->name('dashboard.wali_murid');
 
+    Route::get('/dashboard/developer', [\App\Http\Controllers\Dashboard\DeveloperDashboardController::class, 'index'])
+        ->name('dashboard.developer');
 
-    // ====================================================
-    // B. MANAJEMEN DATA SISWA (LOGIKA HAK AKSES KETAT)
-    // ====================================================
+    // ===================================================================
+    // QUICK ACCESS / SHORTCUTS
+    // ===================================================================
     
-    // 1. LIHAT DAFTAR SISWA (READ ONLY)
-    // Semua role akademik boleh melihat daftar siswa untuk keperluan monitoring/pencarian
-    Route::get('/siswa', [SiswaController::class, 'index'])
-        ->middleware('role:Operator Sekolah,Waka Kesiswaan,Wali Kelas,Kaprodi,Kepala Sekolah')
-        ->name('siswa.index');
+    Route::prefix('quick')->name('quick.')->group(function () {
+        Route::get('/catat-pelanggaran', function () {
+            return redirect()->route('riwayat.create');
+        })->name('catat-pelanggaran');
 
-    // 2. EDIT SISWA (UPDATE)
-    // Hanya Operator (Full Edit) dan Wali Kelas (Edit Kontak)
-    // Waka Kesiswaan TIDAK dimasukkan disini untuk menjaga integritas data
-    Route::middleware(['role:Operator Sekolah,Wali Kelas'])->group(function () {
-        Route::get('/siswa/{siswa}/edit', [SiswaController::class, 'edit'])->name('siswa.edit');
-        Route::put('/siswa/{siswa}', [SiswaController::class, 'update'])->name('siswa.update');
+        Route::get('/daftar-siswa', function () {
+            return redirect()->route('siswa.index');
+        })->name('daftar-siswa');
+
+        Route::get('/pending-approval', function () {
+            return redirect()->route('tindak-lanjut.pending-approval');
+        })->name('pending-approval');
     });
 
-    // 3. TAMBAH & HAPUS SISWA (CREATE & DELETE)
-    // HANYA OPERATOR SEKOLAH yang berhak menambah/menghapus siswa (Master Data)
-    Route::middleware(['role:Operator Sekolah'])->group(function () {
-        Route::get('/siswa/create', [SiswaController::class, 'create'])->name('siswa.create');
-        Route::post('/siswa', [SiswaController::class, 'store'])->name('siswa.store');
-        // Bulk create siswa (form + processing)
-        Route::get('/siswa/bulk-create', [SiswaController::class, 'bulkCreate'])->name('siswa.bulk.create');
-        Route::post('/siswa/bulk-store', [SiswaController::class, 'bulkStore'])->name('siswa.bulk.store');
-        Route::get('/siswa/bulk-success', [SiswaController::class, 'bulkSuccess'])->name('siswa.bulk.success');
-        Route::get('/siswa/bulk-wali-credentials.csv', [SiswaController::class, 'downloadBulkWaliCsv'])->name('siswa.download-bulk-wali-csv');
-        Route::delete('/siswa/{siswa}', [SiswaController::class, 'destroy'])->name('siswa.destroy');
+    // ===================================================================
+    // PELANGGARAN SHORTCUTS
+    // ===================================================================
+    
+    // Shortcut untuk catat pelanggaran (untuk Guru)
+    Route::get('/pelanggaran/catat', function () {
+        return redirect()->route('riwayat.create');
+    })->name('pelanggaran.catat');
+
+    // ===================================================================
+    // REPORTS & ANALYTICS
+    // ===================================================================
+    
+    Route::prefix('reports')->name('reports.')->group(function () {
+        Route::get('/overview', function () {
+            return view('reports.overview');
+        })->name('overview');
+
+        Route::get('/pelanggaran-by-kelas', function () {
+            return view('reports.pelanggaran-kelas');
+        })->name('pelanggaran-kelas');
+
+        Route::get('/pelanggaran-by-jurusan', function () {
+            return view('reports.pelanggaran-jurusan');
+        })->name('pelanggaran-jurusan');
     });
 
+    // ===================================================================
+    // SETTINGS
+    // ===================================================================
+    
+    Route::prefix('settings')->name('settings.')->group(function () {
+        Route::get('/general', function () {
+            return view('settings.general');
+        })->name('general')->middleware('role:Operator Sekolah');
 
-    // ====================================================
-    // C. OPERASIONAL PELANGGARAN
-    // ====================================================
-
-    // 1. CATAT PELANGGARAN (CREATE)
-    // Waka Kesiswaan PUNYA akses di sini (Tugas Utama)
-    Route::middleware(['role:Guru,Wali Kelas,Waka Kesiswaan,Kaprodi'])->group(function () {
-        Route::get('/pelanggaran/catat', [PelanggaranController::class, 'create'])->name('pelanggaran.create');
-        Route::post('/pelanggaran/store', [PelanggaranController::class, 'store'])->name('pelanggaran.store');
+        Route::get('/sekolah', function () {
+            return view('settings.sekolah');
+        })->name('sekolah')->middleware('role:Operator Sekolah');
     });
+});
 
-    // 2. LIHAT RIWAYAT (READ)
-    Route::get('/riwayat-pelanggaran', [RiwayatController::class, 'index'])
-        ->middleware('role:Operator Sekolah,Waka Kesiswaan,Wali Kelas,Kaprodi,Kepala Sekolah')
-        ->name('riwayat.index');
+// ===================================================================
+// FALLBACK ROUTE
+// ===================================================================
 
-    // 3. KELOLA KASUS / TINDAK LANJUT (UPDATE)
-    Route::middleware(['role:Wali Kelas,Waka Kesiswaan,Kepala Sekolah,Operator Sekolah,Kaprodi'])->group(function () {
-        Route::get('/kasus/{id}/kelola', [TindakLanjutController::class, 'edit'])->name('kasus.edit');
-        Route::put('/kasus/{id}/update', [TindakLanjutController::class, 'update'])->name('kasus.update');
-        Route::get('/kasus/{id}/cetak', [TindakLanjutController::class, 'cetakSurat'])->name('kasus.cetak');
-    });
-
-
-    // ====================================================
-    // D. MANAJEMEN USER & MASTER DATA (ADMIN ONLY)
-    // ====================================================
-    // Hanya Operator Sekolah yang boleh mengelola User dan Aturan
-    Route::middleware(['role:Operator Sekolah'])->group(function () {
-        Route::resource('users', UserController::class);
-        Route::resource('jenis-pelanggaran', JenisPelanggaranController::class);
-        Route::resource('kelas', App\Http\Controllers\KelasController::class)->parameters(['kelas' => 'kelas']);
-        Route::resource('jurusan', JurusanController::class)->parameters(['jurusan' => 'jurusan']);
-    });
-
-    // ====================================================
-    // E. AUDIT & BULK DELETE (ADMIN ONLY)
-    // ====================================================
-    Route::middleware(['role:Operator Sekolah'])->prefix('audit')->name('audit.')->group(function () {
-        Route::get('/siswa', [\App\Http\Controllers\AuditController::class, 'show'])->name('siswa');
-        Route::post('/siswa/preview', [\App\Http\Controllers\AuditController::class, 'preview'])->name('siswa.preview');
-        Route::get('/siswa/summary', function() {
-            return view('audit.siswa.summary', session()->all());
-        })->name('siswa.summary');
-        Route::get('/siswa/export', [\App\Http\Controllers\AuditController::class, 'export'])->name('siswa.export');
-        Route::get('/siswa/confirm-delete', [\App\Http\Controllers\AuditController::class, 'confirmDelete'])->name('siswa.confirm-delete');
-        Route::delete('/siswa', [\App\Http\Controllers\AuditController::class, 'destroy'])->name('siswa.destroy');
-    });
-
-    // ====================================================
-    // F. KEPALA SEKOLAH - PERSETUJUAN & VALIDASI KASUS
-    // ====================================================
-    Route::middleware(['role:Kepala Sekolah'])->prefix('kepala-sekolah')->name('kepala-sekolah.')->group(function () {
-        // Approval Module
-        Route::get('/approvals', [ApprovalController::class, 'index'])->name('approvals.index');
-        Route::get('/approvals/{tindakLanjut}', [ApprovalController::class, 'show'])->name('approvals.show');
-        Route::put('/approvals/{tindakLanjut}/process', [ApprovalController::class, 'process'])->name('approvals.process');
-
-        // Reports Module
-        Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
-        Route::post('/reports/preview', [ReportController::class, 'preview'])->name('reports.preview');
-        Route::get('/reports/export-csv', [ReportController::class, 'exportCsv'])->name('reports.export-csv');
-        Route::get('/reports/export-pdf', [ReportController::class, 'exportPdf'])->name('reports.export-pdf');
-
-        // User Management Module
-        Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
-        Route::get('/users/{user}', [UserManagementController::class, 'show'])->name('users.show');
-        Route::post('/users/{user}/reset-password', [UserManagementController::class, 'resetPassword'])->name('users.reset-password');
-        Route::put('/users/{user}/toggle-status', [UserManagementController::class, 'toggleStatus'])->name('users.toggle-status');
-
-        // Activity Log Module
-        Route::get('/activity-logs', [ActivityLogController::class, 'index'])->name('activity.index');
-        Route::get('/activity-logs/{activity}', [ActivityLogController::class, 'show'])->name('activity.show');
-        Route::get('/activity-logs/export-csv', [ActivityLogController::class, 'exportCsv'])->name('activity.export-csv');
-    });
+Route::fallback(function () {
+    abort(404, 'Halaman tidak ditemukan');
 });

@@ -20,7 +20,7 @@
         </div>
         <div class="col-sm-6 text-right">
              @php
-                $role = auth()->user()->role->nama_role;
+                $role = auth()->user()->effectiveRoleName() ?? auth()->user()->role?->nama_role;
                 $backRoute = match($role) {
                     'Wali Kelas' => route('dashboard.walikelas'),
                     'Kaprodi' => route('dashboard.kaprodi'),
@@ -61,6 +61,9 @@
                             <th class="text-center">Poin</th>
                             <th>Dicatat Oleh</th>
                             <th class="text-center">Bukti</th>
+                            @if(auth()->user()->hasRole('Operator Sekolah'))
+                            <th class="text-center">Aksi</th>
+                            @endif
                         </tr>
                     </thead>
                     <tbody>
@@ -86,7 +89,7 @@
                                     <div class="avatar-circle">{{ $initial }}</div>
                                     
                                     <div>
-                                        <a href="{{ route('riwayat.index', ['cari_siswa' => $r->siswa->nama_siswa]) }}" class="text-primary font-weight-bold smart-link" title="Lihat riwayat siswa ini">
+                                        <a href="{{ route('siswa.show', $r->siswa->id) }}" class="text-primary font-weight-bold smart-link" title="Lihat profil siswa">
                                             {{ $r->siswa->nama_siswa }}
                                         </a>
                                         
@@ -135,7 +138,7 @@
                                             <i class="fas fa-user-tie text-secondary small"></i>
                                         </div>
                                         <div>
-                                            <div class="font-weight-bold text-sm">{{ $r->guruPencatat->nama }}</div>
+                                            <div class="font-weight-bold text-sm">{{ $r->guruPencatat->username }}</div>
                                             <div class="text-xs text-muted">Pelapor</div>
                                         </div>
                                     </a>
@@ -146,18 +149,37 @@
 
                             <!-- 6. BUKTI -->
                             <td class="text-center">
-                                @if($r->bukti_foto_path)
-                                    <a href="{{ asset('storage/' . $r->bukti_foto_path) }}" target="_blank" class="btn btn-light btn-sm border rounded-circle shadow-sm" style="width: 35px; height: 35px; padding: 0; line-height: 33px;" title="Lihat Foto">
-                                        <i class="fas fa-image text-info"></i>
-                                    </a>
-                                @else
-                                    <span class="text-muted text-xs">-</span>
-                                @endif
+                                    @if($r->bukti_foto_path)
+                                        <a href="{{ route('bukti.show', ['path' => $r->bukti_foto_path]) }}" target="_blank" class="btn btn-light btn-sm border rounded-circle shadow-sm" style="width: 35px; height: 35px; padding: 0; line-height: 33px;" title="Lihat Foto">
+                                            <i class="fas fa-image text-muted"></i>
+                                        </a>
+                                    @else
+                                        <span class="text-muted text-xs">-</span>
+                                    @endif
                             </td>
+
+                            <!-- 7. AKSI (Operator Only) -->
+                            @if(auth()->user()->hasRole('Operator Sekolah'))
+                            <td class="text-center">
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ route('my-riwayat.edit', ['riwayat' => $r->id, 'return_url' => url()->full()]) }}" class="btn btn-warning btn-sm" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <form action="{{ route('my-riwayat.destroy', $r->id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Yakin ingin menghapus riwayat ini? Poin siswa akan direcalculate.');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <input type="hidden" name="return_url" value="{{ url()->full() }}">
+                                        <button type="submit" class="btn btn-danger btn-sm" title="Hapus">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                            @endif
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="6" class="text-center py-5">
+                            <td colspan="{{ auth()->user()->hasRole('Operator Sekolah') ? '7' : '6' }}" class="text-center py-5">
                                 <div class="py-4">
                                     <i class="fas fa-search fa-3x text-gray-200 mb-3"></i>
                                     <h6 class="text-muted font-weight-normal">Data tidak ditemukan.</h6>

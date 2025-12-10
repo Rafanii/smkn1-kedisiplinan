@@ -2,19 +2,21 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Auth\MustVerifyEmail as MustVerifyEmailTrait;
 use Spatie\Activitylog\Traits\LogsActivity;
+use App\Services\User\RoleService;
 use Spatie\Activitylog\LogOptions;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
-    use HasFactory, Notifiable, LogsActivity;
+    use HasFactory, Notifiable, LogsActivity, MustVerifyEmailTrait;
 
     /**
      * Configure activity log options for User model.
@@ -37,7 +39,14 @@ class User extends Authenticatable
         'nama',
         'username',
         'email',
+        'phone',
+        'nip',
+        'nuptk',
         'password',
+        'username_changed_at',
+        'password_changed_at',
+        'last_login_at',
+        'is_active',
     ];
 
     /**
@@ -57,7 +66,21 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'profile_completed_at' => 'datetime',
+        'username_changed_at' => 'datetime',
+        'password_changed_at' => 'datetime',
+        'last_login_at' => 'datetime',
         'password' => 'hashed',
+        'is_active' => 'boolean',
+    ];
+
+    /**
+     * The attributes that should have default values.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'is_active' => true,
     ];
 
     // =====================================================================
@@ -128,15 +151,27 @@ class User extends Authenticatable
      */
     public function hasRole(string|array $roles): bool
     {
-        if (is_string($roles)) {
-            $roles = [$roles];
-        }
+        return RoleService::hasRole($roles, $this);
+    }
 
-        if (!$this->role) {
-            return false;
-        }
+    /**
+     * Whether this user record is the Developer account (actual role), and allowed in non-production.
+     */
+    public function isDeveloper(): bool
+    {
+        return RoleService::isRealDeveloper($this);
+    }
 
-        return in_array($this->role->nama_role, $roles, true);
+    /**
+     * Return the effective role name for this user considering developer impersonation override.
+     * If the user is Developer and an override is set in session, return the override.
+     * Otherwise return the actual role name (or null if none).
+     *
+     * @return string|null
+     */
+    public function effectiveRoleName(): ?string
+    {
+        return RoleService::effectiveRoleName($this);
     }
 
     /**
@@ -157,6 +192,7 @@ class User extends Authenticatable
         'Wali Kelas',
         'Kaprodi',
         'Waka Kesiswaan',
+        'Waka Sarana',
         'Operator Sekolah',
     ];
 
@@ -190,6 +226,39 @@ class User extends Authenticatable
     public function isWaliMurid(): bool
     {
         return $this->hasRole('Wali Murid');
+    }
+
+    /**
+     * Check if user is Waka Sarana.
+     */
+    public function isWakaSarana(): bool
+    {
+        return $this->hasRole('Waka Sarana');
+    }
+
+    /**
+     * Cek apakah user sudah melengkapi profil minimal (email dan, untuk sebagian role,
+     * kontak) saat login pertama.
+     */
+    public function hasCompletedProfile(): bool
+    {
+        return $this->profile_completed_at !== null;
+    }
+
+    /**
+     * Cek apakah username sudah pernah diubah oleh user.
+     */
+    public function hasChangedUsername(): bool
+    {
+        return $this->username_changed_at !== null;
+    }
+
+    /**
+     * Cek apakah password sudah pernah diubah oleh user.
+     */
+    public function hasChangedPassword(): bool
+    {
+        return $this->password_changed_at !== null;
     }
 
     /**

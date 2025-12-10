@@ -18,9 +18,11 @@
         <div class="alert alert-danger">{{ session('error') }}</div>
     @endif
 
+    @if(auth()->user()->hasRole('Operator Sekolah'))
     <div class="mb-3">
         <a href="{{ route('jurusan.create') }}" class="btn btn-primary">Tambah Jurusan</a>
     </div>
+    @endif
 
     @if(session('kaprodi_created'))
         @php $c = session('kaprodi_created'); @endphp
@@ -49,17 +51,19 @@
                         <tr>
                             <td>{{ $j->nama_jurusan }}</td>
                             <td>{{ $j->kode_jurusan ?? '-' }}</td>
-                            <td>{{ $j->kaprodi?->nama ?? '-' }}</td>
+                            <td>{{ $j->kaprodi?->username ?? '-' }}</td>
                             <td>{{ $j->kelas_count }}</td>
                             <td>{{ $j->siswa_count }}</td>
                             <td>
                                 <a href="{{ route('jurusan.show', $j) }}" class="btn btn-sm btn-info">Lihat</a>
+                                @if(auth()->user()->hasRole('Operator Sekolah'))
                                 <a href="{{ route('jurusan.edit', $j) }}" class="btn btn-sm btn-warning">Edit</a>
                                 <form action="{{ route('jurusan.destroy', $j) }}" method="POST" style="display:inline-block;" onsubmit="return confirm('Hapus jurusan ini?');">
                                     @csrf
                                     @method('DELETE')
-                                    <button class="btn btn-sm btn-danger">Hapus</button>
+                                    <button type="submit" class="btn btn-sm btn-danger">Hapus</button>
                                 </form>
+                                @endif
                             </td>
                         </tr>
                     @empty

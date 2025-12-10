@@ -46,7 +46,7 @@
 
                     <div class="form-group">
                         <label class="font-weight-bold">Role</label>
-                        <p><span class="badge badge-secondary p-2">{{ $user->role->nama_role ?? 'N/A' }}</span></p>
+                        <p><span class="badge badge-secondary p-2">{{ $user->role?->nama_role ?? 'N/A' }}</span></p>
                     </div>
 
                     <div class="form-group">
@@ -62,7 +62,7 @@
 
                     <div class="form-group">
                         <label class="font-weight-bold">Terakhir Login</label>
-                        <p>{{ $user->last_login_at ? $user->last_login_at->format('d M Y H:i') : 'Belum login' }}</p>
+                        <p>{{ $user->last_login_at ? formatDateTime($user->last_login_at) : 'Belum login' }}</p>
                     </div>
 
                     <div class="form-group">

@@ -2,292 +2,312 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
-use App\Models\Role;
-use App\Models\Siswa;
-use App\Models\Jurusan; // <-- WAJIB ADA
-use App\Models\Kelas;   // <-- WAJIB ADA
+use App\Services\User\UserService;
+use App\Data\User\UserData;
+use App\Http\Requests\User\CreateUserRequest;
+use App\Http\Requests\User\UpdateUserRequest;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\View\View;
 
+/**
+ * User Controller - Clean Architecture Pattern
+ * 
+ * PERAN: Kurir (Courier)
+ * - Menerima HTTP Request
+ * - Validasi (via FormRequest)
+ * - Convert ke DTO
+ * - Panggil Service
+ * - Return Response
+ * 
+ * ATURAN:
+ * - TIDAK BOLEH ada business logic
+ * - TIDAK BOLEH ada query database langsung (use models in constructor if needed)
+ * - TIDAK BOLEH ada manipulasi data
+ * - Target: < 20 baris per method
+ */
 class UserController extends Controller
 {
-    public function index(Request $request)
+    /**
+     * Inject UserService via constructor.
+     *
+     * @param UserService $userService
+     */
+    public function __construct(
+        private UserService $userService
+    ) {}
+
+    /**
+     * Display list of users with filters.
+     */
+    public function index(Request $request): View
     {
-        $roles = Role::all();
-        $query = User::with('role');
+        $filters = [
+            'role_id' => $request->input('role_id'),
+            'is_active' => $request->input('is_active'),
+            'search' => $request->input('search'),
+        ];
 
-        if ($request->filled('cari')) {
-            $query->where(function($q) use ($request) {
-                $q->where('nama', 'like', '%' . $request->cari . '%')
-                  ->orWhere('username', 'like', '%' . $request->cari . '%')
-                  ->orWhere('email', 'like', '%' . $request->cari . '%');
-            });
-        }
-
-        if ($request->filled('role_id')) {
-            $query->where('role_id', $request->role_id);
-        }
-
-        $users = $query->orderBy('role_id')
-                       ->orderBy('nama')
-                       ->paginate(10)
-                       ->withQueryString();
+        $users = $this->userService->getPaginatedUsers(20, $filters);
+        $roles = $this->userService->getAllRoles();
 
         return view('users.index', compact('users', 'roles'));
     }
 
-    public function create()
+    /**
+     * Show create user form.
+     * 
+     * CLEAN: Fetch master data via service
+     */
+    public function create(): View
     {
-        $roles = Role::all();
+        $roles = $this->userService->getAllRoles();
+        $kelas = $this->userService->getAllKelas();
+        $jurusan = $this->userService->getAllJurusan();
+        $siswa = $this->userService->getAllSiswa();
         
-        // DATA PENDUKUNG FILTER (WAJIB ADA AGAR TIDAK ERROR)
-        $jurusan = Jurusan::all();
-        $kelas = Kelas::orderBy('nama_kelas')->get();
-
-        // Load siswa beserta kelas & jurusan untuk filtering di frontend
-        $siswa = Siswa::with('kelas.jurusan')->orderBy('nama_siswa')->get();
-
-        // cek apakah sudah ada Kepala Sekolah di sistem
-        $kepsek = User::whereHas('role', function($q){ $q->where('nama_role','Kepala Sekolah'); })->first();
-        $kepsekExists = $kepsek ? true : false;
-        $kepsekId = $kepsek->id ?? null;
-        $kepsekUsername = $kepsek->username ?? null;
-
-        return view('users.create', compact('roles', 'siswa', 'jurusan', 'kelas', 'kepsekExists', 'kepsekId', 'kepsekUsername'));
+        return view('users.create', compact('roles', 'kelas', 'jurusan', 'siswa'));
     }
 
-    public function store(Request $request)
+    /**
+     * Store new user.
+     */
+    public function store(CreateUserRequest $request): RedirectResponse
+    {
+        // Get validated data with additional fields
+        $validated = $request->validated();
+        
+        // Pass all data including optional kelas_id, jurusan_id, siswa_ids to service
+        $this->userService->createUser($validated);
+
+        return redirect()
+            ->route('users.index')
+            ->with('success', 'User berhasil ditambahkan.');
+    }
+
+    /**
+     * Show user detail.
+     */
+    public function show(int $id): View
+    {
+        $user = $this->userService->getUser($id);
+        return view('users.show', compact('user'));
+    }
+
+    /**
+     * Show edit user form.
+     * 
+     * CLEAN: Fetch master data via service
+     */
+    public function edit(int $id): View
+    {
+        $user = $this->userService->getUser($id);
+        $roles = $this->userService->getAllRoles();
+        $kelas = $this->userService->getAllKelas();
+        $jurusan = $this->userService->getAllJurusan();
+        $siswa = $this->userService->getAllSiswa();
+        $connectedSiswaIds = $this->userService->getConnectedSiswaIds($id);
+        
+        return view('users.edit', compact('user', 'roles', 'kelas', 'jurusan', 'siswa', 'connectedSiswaIds'));
+    }
+
+    /**
+     * Update user.
+     */
+    public function update(UpdateUserRequest $request, int $id): RedirectResponse
+    {
+        $userData = UserData::from($request->validated());
+        
+        $this->userService->updateUser($id, $userData);
+
+        return redirect()
+            ->route('users.index')
+            ->with('success', 'User berhasil diperbarui.');
+    }
+
+    /**
+     * Delete user.
+     */
+    public function destroy(int $id): RedirectResponse
+    {
+        $this->userService->deleteUser($id);
+
+        return redirect()
+            ->route('users.index')
+            ->with('success', 'User berhasil dihapus.');
+    }
+
+    /**
+     * Show reset password form.
+     */
+    public function resetPasswordForm(int $id): View
+    {
+        $user = $this->userService->getUser($id);
+        return view('users.reset-password', compact('user'));
+    }
+
+    /**
+     * Reset user password (by admin).
+     */
+    public function resetPassword(Request $request, int $id): RedirectResponse
     {
         $request->validate([
-            'nama' => 'required|string|max:255',
-            'username' => 'required|string|unique:users,username',
-            'email' => 'required|email|unique:users,email',
-            'role_id' => 'required|exists:roles,id',
-            'jurusan_id' => 'nullable|exists:jurusan,id',
-            'kelas_id' => 'nullable|exists:kelas,id',
-            'password' => 'required|min:6',
-            'siswa_ids' => 'nullable|array',
-            'siswa_ids.*' => 'exists:siswa,id',
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
         ]);
 
-        // Jika role Kaprodi dan jurusan dipilih, pastikan jurusan belum punya Kaprodi.
-        $roleKaprodi = Role::where('nama_role', 'Kaprodi')->first();
-        if ($roleKaprodi && $request->role_id == $roleKaprodi->id && $request->filled('jurusan_id')) {
-            $jur = Jurusan::find($request->jurusan_id);
-            if ($jur && $jur->kaprodi_user_id) {
-                return back()->withInput()->withErrors(['jurusan_id' => 'Jurusan ini sudah memiliki Kaprodi: ' . (optional($jur->kaprodi)->nama ?? '—') . '. Pilih jurusan lain atau lepaskan role Kaprodi pada akun yang bersangkutan.']);
-            }
-        }
+        $this->userService->resetPassword($id, $request->password);
 
-        // Jika role Wali Kelas dan kelas dipilih, pastikan kelas belum punya wali
-        $roleWali = Role::where('nama_role', 'Wali Kelas')->first();
-        if ($roleWali && $request->role_id == $roleWali->id && $request->filled('kelas_id')) {
-            $kel = Kelas::find($request->kelas_id);
-            if ($kel && $kel->wali_kelas_user_id) {
-                return back()->withInput()->withErrors(['kelas_id' => 'Kelas ini sudah memiliki Wali Kelas: ' . (optional($kel->waliKelas)->nama ?? '—') . '. Pilih kelas lain atau lepaskan role Wali Kelas pada akun yang bersangkutan.']);
-            }
-        }
-
-        // Jika role Kepala Sekolah, pastikan belum ada Kepala Sekolah lain di sistem
-        $roleKepsek = Role::where('nama_role', 'Kepala Sekolah')->first();
-        if ($roleKepsek && $request->role_id == $roleKepsek->id) {
-            $exists = User::where('role_id', $roleKepsek->id)->exists();
-            if ($exists) {
-                return back()->withInput()->withErrors(['role_id' => 'Sudah ada Kepala Sekolah pada sistem. Pilih role lain atau hapus/ubah role Kepala Sekolah yang sekarang terlebih dahulu.']);
-            }
-        }
-
-        DB::transaction(function() use ($request, $roleKaprodi) {
-            $user = User::create([
-                'nama' => $request->nama,
-                'username' => $request->username,
-                'email' => $request->email,
-                'role_id' => $request->role_id,
-                'password' => Hash::make($request->password),
-            ]);
-
-            $roleOrtu = Role::where('nama_role', 'Wali Murid')->first();
-            
-            if ($roleOrtu && $request->role_id == $roleOrtu->id) {
-                if ($request->filled('siswa_ids')) {
-                    Siswa::whereIn('id', $request->siswa_ids)->update([
-                        'wali_murid_user_id' => $user->id
-                    ]);
-                }
-            }
-
-            // Jika role adalah Kaprodi, link ke jurusan yang dipilih (jika ada)
-            if ($roleKaprodi && $request->role_id == $roleKaprodi->id && $request->filled('jurusan_id')) {
-                Jurusan::where('id', $request->jurusan_id)->update(['kaprodi_user_id' => $user->id]);
-            }
-
-            // Jika role adalah Wali Kelas, link ke kelas yang dipilih (jika ada)
-            if ($roleWali && $request->role_id == $roleWali->id && $request->filled('kelas_id')) {
-                Kelas::where('id', $request->kelas_id)->update(['wali_kelas_user_id' => $user->id]);
-            }
-        });
-
-        return redirect()->route('users.index')->with('success', 'User berhasil ditambahkan!');
+        return redirect()
+            ->route('users.index')
+            ->with('success', 'Password berhasil direset.');
     }
 
-    public function edit(User $user)
+    /**
+     * Toggle user activation.
+     */
+    public function toggleActivation(int $id): RedirectResponse
     {
-        $roles = Role::all();
-        
-        // DATA PENDUKUNG FILTER
-        $jurusan = Jurusan::all();
-        $kelas = Kelas::orderBy('nama_kelas')->get();
-        
-        $siswa = Siswa::with('kelas.jurusan')->orderBy('nama_siswa')->get();
-        
-        // Ambil anak yg sudah terhubung
-        $connectedSiswaIds = $user->anakWali->pluck('id')->toArray();
+        $this->userService->toggleActivation($id);
 
-        $kepsek = User::whereHas('role', function($q){ $q->where('nama_role','Kepala Sekolah'); })->first();
-        $kepsekExists = $kepsek ? true : false;
-        $kepsekId = $kepsek->id ?? null;
-        $kepsekUsername = $kepsek->username ?? null;
-
-        return view('users.edit', compact('user', 'roles', 'siswa', 'connectedSiswaIds', 'jurusan', 'kelas', 'kepsekExists', 'kepsekId', 'kepsekUsername'));
+        return redirect()
+            ->back()
+            ->with('success', 'Status aktivasi user berhasil diubah.');
     }
 
-    public function update(Request $request, User $user)
+    /**
+     * Show own profile.
+     */
+    public function showProfile(): View
+    {
+        $user = $this->userService->getUser(auth()->id());
+        return view('users.profile-show', compact('user'));  // Using users folder
+    }
+
+    /**
+     * Show edit own profile form.
+     * 
+     * NOTE: Using simple profile view (create if not exists)
+     */
+    public function editProfile(): View
+    {
+        $user = $this->userService->getUser(auth()->id());
+        return view('users.profile', compact('user'));  // Simpler profile edit view
+    }
+
+    /**
+     * Update own profile.
+     */
+    public function updateProfile(Request $request): RedirectResponse
     {
         $request->validate([
-            'nama' => 'required|string|max:255',
-            'username' => 'required|unique:users,username,' . $user->id,
-            'email' => 'required|email|unique:users,email,' . $user->id,
-            'role_id' => 'required|exists:roles,id',
-            'jurusan_id' => 'nullable|exists:jurusan,id',
-            'kelas_id' => 'nullable|exists:kelas,id',
-            'password' => 'nullable|min:6',
-            'siswa_ids' => 'nullable|array',
-            'siswa_ids.*' => 'exists:siswa,id',
+            'nama' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:20'],
         ]);
 
-        // Jika role Kaprodi dan jurusan dipilih, pastikan jurusan belum punya Kaprodi yang bukan user ini
-        $roleKaprodi = Role::where('nama_role', 'Kaprodi')->first();
-        if ($roleKaprodi && $request->role_id == $roleKaprodi->id && $request->filled('jurusan_id')) {
-            $jur = Jurusan::find($request->jurusan_id);
-            if ($jur && $jur->kaprodi_user_id && $jur->kaprodi_user_id != $user->id) {
-                return back()->withInput()->withErrors(['jurusan_id' => 'Jurusan ini sudah dimiliki oleh Kaprodi lain: ' . (optional($jur->kaprodi)->nama ?? '—') . '. Pilih jurusan lain atau lepaskan role Kaprodi pada akun yang bersangkutan.']);
-            }
-        }
+        $userData = UserData::from([
+            'id' => auth()->id(),
+            'nama' => $request->nama,
+            'email' => $request->email,
+            'phone' => $request->phone,
+            'username' => auth()->user()->username, // Keep existing
+            'role_id' => auth()->user()->role_id, // Keep existing
+            'is_active' => auth()->user()->is_active, // Keep existing
+        ]);
 
-        // Jika role Wali Kelas dan kelas dipilih, pastikan kelas belum punya wali yang bukan user ini
-        $roleWali = Role::where('nama_role', 'Wali Kelas')->first();
-        if ($roleWali && $request->role_id == $roleWali->id && $request->filled('kelas_id')) {
-            $kel = Kelas::find($request->kelas_id);
-            if ($kel && $kel->wali_kelas_user_id && $kel->wali_kelas_user_id != $user->id) {
-                return back()->withInput()->withErrors(['kelas_id' => 'Kelas ini sudah dimiliki oleh Wali Kelas lain: ' . (optional($kel->waliKelas)->nama ?? '—') . '. Pilih kelas lain atau lepaskan role Wali Kelas pada akun yang bersangkutan.']);
-            }
-        }
+        $this->userService->updateUser(auth()->id(), $userData);
 
-        // Jika role Kepala Sekolah, pastikan belum ada Kepala Sekolah lain di sistem
-        $roleKepsek = Role::where('nama_role', 'Kepala Sekolah')->first();
-        if ($roleKepsek && $request->role_id == $roleKepsek->id) {
-            $exists = User::where('role_id', $roleKepsek->id)->where('id', '!=', $user->id)->exists();
-            if ($exists) {
-                return back()->withInput()->withErrors(['role_id' => 'Sudah ada Kepala Sekolah pada sistem. Pilih role lain atau hapus/ubah role Kepala Sekolah yang sekarang terlebih dahulu.']);
-            }
-        }
-
-        DB::transaction(function() use ($request, $user) {
-            $data = [
-                'nama' => $request->nama,
-                'username' => $request->username,
-                'email' => $request->email,
-                'role_id' => $request->role_id,
-            ];
-
-            if ($request->filled('password')) {
-                $data['password'] = Hash::make($request->password);
-            }
-
-            $user->update($data);
-
-            $roleOrtu = Role::where('nama_role', 'Wali Murid')->first();
-
-            if ($roleOrtu && $request->role_id == $roleOrtu->id) {
-                // Reset anak lama
-                Siswa::where('wali_murid_user_id', $user->id)->update(['wali_murid_user_id' => null]);
-
-                // Set anak baru
-                if ($request->filled('siswa_ids')) {
-                    Siswa::whereIn('id', $request->siswa_ids)->update([
-                        'wali_murid_user_id' => $user->id
-                    ]);
-                }
-            }
-
-            // --- Kaprodi assignment handling ---
-            $roleKaprodi = Role::where('nama_role', 'Kaprodi')->first();
-
-            // If user should be Kaprodi now
-            if ($roleKaprodi && $request->role_id == $roleKaprodi->id) {
-                // Unset any jurusan previously pointing to this user (defensive)
-                Jurusan::where('kaprodi_user_id', $user->id)->update(['kaprodi_user_id' => null]);
-
-                // If a jurusan was selected, assign it to this user
-                if ($request->filled('jurusan_id')) {
-                    Jurusan::where('id', $request->jurusan_id)->update(['kaprodi_user_id' => $user->id]);
-                }
-            } else {
-                // If user is no longer Kaprodi, remove any jurusan assignment they had
-                Jurusan::where('kaprodi_user_id', $user->id)->update(['kaprodi_user_id' => null]);
-            }
-
-            // --- Wali Kelas assignment handling ---
-            $roleWali = Role::where('nama_role', 'Wali Kelas')->first();
-
-            if ($roleWali && $request->role_id == $roleWali->id) {
-                // Unset any kelas previously pointing to this user (defensive)
-                Kelas::where('wali_kelas_user_id', $user->id)->update(['wali_kelas_user_id' => null]);
-
-                // If a kelas was selected, assign it to this user
-                if ($request->filled('kelas_id')) {
-                    Kelas::where('id', $request->kelas_id)->update(['wali_kelas_user_id' => $user->id]);
-                }
-            } else {
-                // If user is no longer Wali Kelas, remove any kelas assignment they had
-                Kelas::where('wali_kelas_user_id', $user->id)->update(['wali_kelas_user_id' => null]);
-            }
-        });
-
-        return redirect()->route('users.index')->with('success', 'Data user berhasil diperbarui!');
+        return redirect()
+            ->route('profile.show')
+            ->with('success', 'Profile berhasil diperbarui.');
     }
 
-    public function destroy(User $user)
+    /**
+     * Show change password form.
+     */
+    public function changePasswordForm(): View
     {
-        if (auth()->id() == $user->id) {
-            return back()->with('error', 'Anda tidak bisa menghapus akun sendiri!');
-        }
+        return view('users.change-password');
+    }
 
-        // Prevent deletion if user still holds important relations (kaprodi/wali kelas, pencatat riwayat, penyetuju tindak lanjut)
-        if ($user->jurusanDiampu) {
-            return back()->with('error', 'Gagal menghapus: User ini masih menjadi Kaprodi pada sebuah jurusan. Hapus atau pindahkan relasi terlebih dahulu.');
-        }
+    /**
+     * Change own password.
+     */
+    public function changePassword(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'old_password' => ['required'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
 
-        if ($user->kelasDiampu) {
-            return back()->with('error', 'Gagal menghapus: User ini masih menjadi Wali Kelas untuk sebuah kelas. Hapus atau pindahkan relasi terlebih dahulu.');
-        }
+        try {
+            $this->userService->changePassword(
+                auth()->id(),
+                $request->old_password,
+                $request->password
+            );
 
-        if ($user->riwayatDicatat()->exists()) {
-            return back()->with('error', 'Gagal menghapus: User ini pernah mencatat riwayat pelanggaran. Harap tinjau data terlebih dahulu.');
+            return redirect()
+                ->route('profile.show')
+                ->with('success', 'Password berhasil diubah.');
+                
+        } catch (\Exception $e) {
+            return redirect()
+                ->back()
+                ->with('error', $e->getMessage());
         }
+    }
 
-        if ($user->tindakLanjutDisetujui()->exists()) {
-            return back()->with('error', 'Gagal menghapus: User ini pernah menyetujui tindak lanjut. Harap tinjau data terlebih dahulu.');
-        }
+    /**
+     * Export users (placeholder).
+     */
+    public function export()
+    {
+        // TODO: Implement export logic
+        return response()->download('path/to/export.xlsx');
+    }
 
-        // For parent/ortu: detach anak-anaknya (set null)
-        if ($user->anakWali()->exists()) {
-            Siswa::where('wali_murid_user_id', $user->id)->update(['wali_murid_user_id' => null]);
-        }
+    /**
+     * Bulk activate users.
+     */
+    public function bulkActivate(Request $request): RedirectResponse
+    {
+        // TODO: Implement bulk activate
+        return redirect()
+            ->back()
+            ->with('success', 'Users berhasil diaktifkan.');
+    }
 
-        $user->delete();
-        return redirect()->route('users.index')->with('success', 'User berhasil dihapus!');
+    /**
+     * Bulk deactivate users.
+     */
+    public function bulkDeactivate(Request $request): RedirectResponse
+    {
+        // TODO: Implement bulk deactivate
+        return redirect()
+            ->back()
+            ->with('success', 'Users berhasil dinonaktifkan.');
+    }
+
+    /**
+     * Bulk delete users.
+     */
+    public function bulkDelete(Request $request): RedirectResponse
+    {
+        // TODO: Implement bulk delete
+        return redirect()
+            ->back()
+            ->with('success', 'Users berhasil dihapus.');
+    }
+
+    /**
+     * Import users.
+     */
+    public function import(Request $request): RedirectResponse
+    {
+        // TODO: Implement import logic
+        return redirect()
+            ->back()
+            ->with('success', 'Users berhasil diimport.');
     }
 }

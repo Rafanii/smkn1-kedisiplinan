@@ -12,10 +12,10 @@
     <!-- HEADER & TOMBOL TAMBAH -->
     <div class="row mb-3">
         <div class="col-12 d-flex justify-content-between align-items-center">
-            <h4 class="m-0 text-dark"><i class="fas fa-users mr-2"></i> Data Pengguna Sistem</h4>
+            <h4 class="m-0 text-dark"><i class="fas fa-users mr-2"></i> Data Pengguna</h4>
             <div class="btn-group">
                 <!-- Tombol Kembali ke Dashboard (Hanya untuk Operator/Admin) -->
-                @if(auth()->user()->role->nama_role == 'Operator Sekolah')
+                @if(auth()->user()->hasRole('Operator Sekolah'))
                      <a href="{{ route('dashboard.admin') }}" class="btn btn-secondary">
                         <i class="fas fa-arrow-left mr-1"></i> Dashboard
                     </a>
@@ -74,10 +74,11 @@
                 <thead class="bg-light">
                     <tr>
                         <th style="width: 10px">#</th>
-                        <th>Nama Lengkap</th>
                         <th>Username</th>
                         <th>Role</th>
                         <th>Email</th>
+                        <th>Kontak</th>
+                        <th>NIP/NUPTK</th>
                         <th class="text-center">Aksi</th>
                     </tr>
                 </thead>
@@ -86,27 +87,53 @@
                     <tr>
                         <td>{{ $users->firstItem() + $key }}</td>
                         <td>
-                            <strong>{{ $u->nama }}</strong>
+                            <code>{{ $u->username }}</code>
+                            <br><small class="text-muted">{{ $u->nama }}</small>
                         </td>
-                        <td><code>{{ $u->username }}</code></td>
                         <td>
-                            @if($u->role->nama_role == 'Operator Sekolah')
+                            @php $roleName = $u->role?->nama_role ?? 'N/A'; @endphp
+                            @if($roleName == 'Operator Sekolah')
                                 <span class="badge badge-primary">Operator</span>
-                            @elseif($u->role->nama_role == 'Waka Kesiswaan')
+                            @elseif($roleName == 'Waka Kesiswaan')
                                 <span class="badge badge-info">Waka</span>
-                            @elseif($u->role->nama_role == 'Kepala Sekolah')
+                            @elseif($roleName == 'Kepala Sekolah')
                                 <span class="badge badge-danger">Kepsek</span>
-                            @elseif($u->role->nama_role == 'Wali Kelas')
+                            @elseif($roleName == 'Wali Kelas')
                                 <span class="badge badge-warning">Wali Kelas</span>
-                            @elseif($u->role->nama_role == 'Wali Murid')
+                            @elseif($roleName == 'Wali Murid')
                                 <span class="badge badge-success" style="background-color: #28a745;">Wali Murid</span>
-                            @elseif($u->role->nama_role == 'Guru')
+                            @elseif($roleName == 'Guru')
                                 <span class="badge badge-secondary">Guru</span>
                             @else
-                                <span class="badge badge-light border">{{ $u->role->nama_role }}</span>
+                                <span class="badge badge-light border">{{ $roleName }}</span>
                             @endif
                         </td>
                         <td class="text-muted">{{ $u->email }}</td>
+                        <td class="text-muted">
+                            @php
+                                // Untuk Wali Murid, ambil kontak dari data siswa (nomor_hp_wali_murid)
+                                if ($u->isWaliMurid()) {
+                                    $kontak = $u->anakWali
+                                        ->whereNotNull('nomor_hp_wali_murid')
+                                        ->pluck('nomor_hp_wali_murid')
+                                        ->first();
+                                } else {
+                                    $kontak = $u->phone;
+                                }
+                            @endphp
+                            {{ $kontak ?? '-' }}
+                        </td>
+                        <td class="text-muted">
+                            @php
+                                // Priority: NIP > NUPTK
+                                $tandaPengenal = $u->nip ?? $u->nuptk ?? null;
+                            @endphp
+                            @if($tandaPengenal)
+                                <small class="text-monospace">{{ $tandaPengenal }}</small>
+                            @else
+                                <span class="text-muted">-</span>
+                            @endif
+                        </td>
                         <td class="text-center">
                             <div class="btn-group btn-group-sm">
                                 <a href="{{ route('users.edit', $u->id) }}" class="btn btn-warning" title="Edit User">
@@ -129,7 +156,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="6" class="text-center py-5 text-muted">
+                        <td colspan="7" class="text-center py-5 text-muted">
                             <i class="fas fa-users-slash fa-3x mb-3"></i><br>
                             Tidak ada data pengguna yang cocok dengan filter Anda.
                         </td>
