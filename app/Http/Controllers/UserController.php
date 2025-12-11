@@ -196,7 +196,7 @@ class UserController extends Controller
     public function showProfile(): View
     {
         $user = $this->userService->getUser(auth()->id());
-        return view('users.profile-show', compact('user'));  // Using users folder
+        return view('users.profile', compact('user'));  // Fixed: use existing profile.blade.php
     }
 
     /**
