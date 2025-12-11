@@ -267,12 +267,16 @@ class JenisPelanggaranRepository extends BaseRepository implements JenisPelangga
      * Check if jenis pelanggaran has riwayat records
      * 
      * EXACT LOGIC from JenisPelanggaranController::destroy() (line 115)
+     * FIXED: Only check ACTIVE (non-deleted) riwayat records
      * 
      * @param JenisPelanggaran $jenisPelanggaran
      * @return bool
      */
     public function hasRiwayatRecords(JenisPelanggaran $jenisPelanggaran): bool
     {
-        return $jenisPelanggaran->riwayatPelanggaran()->exists();
+        // Only check active records (exclude soft deleted)
+        return $jenisPelanggaran->riwayatPelanggaran()
+            ->whereNull('riwayat_pelanggaran.deleted_at')
+            ->exists();
     }
 }

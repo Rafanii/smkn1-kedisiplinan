@@ -16,6 +16,20 @@
         </div>
     </div>
 
+    @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show">
+            {{ session('success') }}
+            <button type="button" class="close" data-dismiss="alert">&times;</button>
+        </div>
+    @endif
+
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show">
+            {{ session('error') }}
+            <button type="button" class="close" data-dismiss="alert">&times;</button>
+        </div>
+    @endif
+
     <!-- Filter & Actions -->
     <div class="row mb-3">
         <div class="col-md-4">
@@ -140,6 +154,13 @@
                             <a href="{{ route('jenis-pelanggaran.edit', $jp->id) }}" class="btn btn-sm btn-warning" title="Edit Jenis Pelanggaran">
                                 <i class="fas fa-edit"></i> Edit
                             </a>
+                            <form action="{{ route('jenis-pelanggaran.destroy', $jp->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Yakin ingin menghapus jenis pelanggaran ini?\n\nSemua frequency rules akan ikut terhapus!\n\nData riwayat pelanggaran yang sudah tercatat TIDAK akan terhapus.');">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-sm btn-danger" title="Hapus Jenis Pelanggaran">
+                                    <i class="fas fa-trash"></i> Hapus
+                                </button>
+                            </form>
                         </td>
                     </tr>
                     @empty

@@ -116,7 +116,7 @@ class JenisPelanggaranController extends Controller
         
         if ($result['success']) {
             return redirect()
-                ->route('jenis-pelanggaran.index')
+                ->route('frequency-rules.index')
                 ->with('success', $result['message']);
         } else {
             return back()->with('error', $result['message']);

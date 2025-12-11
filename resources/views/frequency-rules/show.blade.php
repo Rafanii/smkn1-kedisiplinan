@@ -43,6 +43,16 @@
             <button class="btn btn-primary" data-toggle="modal" data-target="#modalAddRule">
                 <i class="fas fa-plus"></i> Tambah Rule
             </button>
+            <a href="{{ route('jenis-pelanggaran.edit', $jenisPelanggaran->id) }}" class="btn btn-warning">
+                <i class="fas fa-edit"></i> Edit Jenis Pelanggaran
+            </a>
+            <form action="{{ route('jenis-pelanggaran.destroy', $jenisPelanggaran->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Yakin ingin menghapus jenis pelanggaran ini?\n\nSemua frequency rules akan ikut terhapus!\n\nData riwayat pelanggaran yang sudah tercatat TIDAK akan terhapus.');">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> Hapus Jenis Pelanggaran
+                </button>
+            </form>
         </div>
     </div>
 
