@@ -46,7 +46,7 @@ class JenisPelanggaranService
      */
     public function getDataForEdit(int $id): array
     {
-        $jenisPelanggaran = $this->jenisPelanggaranRepository->findById($id);
+        $jenisPelanggaran = $this->jenisPelanggaranRepository->find($id);
         
         return [
             'jenisPelanggaran' => $jenisPelanggaran,

@@ -27,77 +27,7 @@
     }
 </script>
 
-<style>
-    /* Styling Dasar dan Kerapatan */
-    .student-profile-v4 {
-        font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    }
-    .card-v4 {
-        /* shadow-lg yang lebih halus */
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.03); 
-    }
-    
-    /* Ikon Wrapper untuk Field Data */
-    .icon-wrapper-v4 {
-        width: 1.75rem; /* Ukuran 28px */
-        height: 1.75rem;
-        border-radius: 0.375rem; /* rounded-md */
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 0.75rem;
-        flex-shrink: 0;
-    }
-
-    /* Style untuk Garis Timeline V4 yang Rapat dan Rapi */
-    .timeline-v4 {
-        position: relative;
-        padding-left: 28px;
-    }
-
-    .timeline-v4:before {
-        content: '';
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        width: 2px;
-        background: #d1d5db; 
-        left: 0;
-        border-radius: 1px;
-    }
-
-    .timeline-v4 > div {
-        position: relative;
-        margin-bottom: 18px;
-    }
-
-    .timeline-v4 > div > .timeline-item-v4 {
-        background-color: #ffffff;
-        border-radius: 0.5rem;
-        margin-left: 18px;
-        padding: 0.85rem 1rem;
-        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.08);
-        border: 1px solid #f3f4f6;
-    }
-
-    .timeline-v4 > div > .timeline-icon-v4 {
-        position: absolute;
-        width: 22px; 
-        height: 22px;
-        font-size: 11px;
-        line-height: 22px;
-        text-align: center;
-        border-radius: 50%;
-        color: #fff;
-        left: -11px;
-        top: 0;
-        z-index: 10;
-        box-shadow: 0 1px 4px rgba(0,0,0,0.2);
-    }
-</style>
 @endsection
-
-@section('title', 'Profil Siswa - ' . $siswa->nama_siswa)
 
 @section('content')
 <div class="student-profile-v4 p-4 md:p-6 bg-gray-50 min-h-screen">
@@ -124,10 +54,10 @@
                     <h2 class="text-xl font-bold text-gray-900 mb-1 text-center">{{ $siswa->nama_siswa }}</h2>
 
                     {{-- Badge Kelas & Jurusan --}}
-                    <div class="flex flex-wrap justify-center gap-2 text-center">
-                        <span class="px-3 py-1 text-xs font-medium rounded-full bg-info/10 text-info-700 border border-info/20">{{ $siswa->kelas->nama_kelas }}</span>
-                        <span class="px-3 py-1 text-xs font-medium rounded-full bg-secondary/10 text-secondary-700 border border-secondary/20">{{ $siswa->kelas->jurusan->nama_jurusan }}</span>
-                    </div>
+                    <div class="flex flex-wrap justify-center gap-3 text-center my-2">
+    <span class="px-3 py-1 text-xs font-medium rounded-full bg-info/10 text-info-700 border border-info/20">{{ $siswa->kelas->nama_kelas }}</span>
+    <span class="px-3 py-1 text-xs font-medium rounded-full bg-secondary/10 text-secondary-700 border border-secondary/20">{{ $siswa->kelas->jurusan->nama_jurusan }}</span>
+</div>
                 </div>
 
                 <div class="space-y-3 pt-4 border-t border-gray-100">
@@ -313,4 +243,73 @@
     </div>
 
 </div>
+
+<style>
+    /* Styling Dasar dan Kerapatan */
+    .student-profile-v4 {
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    .card-v4 {
+        /* shadow-lg yang lebih halus */
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.03); 
+    }
+    
+    /* Ikon Wrapper untuk Field Data */
+    .icon-wrapper-v4 {
+        width: 1.75rem; /* Ukuran 28px */
+        height: 1.75rem;
+        border-radius: 0.375rem; /* rounded-md */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 0.75rem;
+        flex-shrink: 0;
+    }
+
+    /* Style untuk Garis Timeline V4 yang Rapat dan Rapi */
+    .timeline-v4 {
+        position: relative;
+        padding-left: 28px;
+    }
+
+    .timeline-v4:before {
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #d1d5db; 
+        left: 0;
+        border-radius: 1px;
+    }
+
+    .timeline-v4 > div {
+        position: relative;
+        margin-bottom: 18px;
+    }
+
+    .timeline-v4 > div > .timeline-item-v4 {
+        background-color: #ffffff;
+        border-radius: 0.5rem;
+        margin-left: 18px;
+        padding: 0.85rem 1rem;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.08);
+        border: 1px solid #f3f4f6;
+    }
+
+    .timeline-v4 > div > .timeline-icon-v4 {
+        position: absolute;
+        width: 22px; 
+        height: 22px;
+        font-size: 11px;
+        line-height: 22px;
+        text-align: center;
+        border-radius: 50%;
+        color: #fff;
+        left: -11px;
+        top: 0;
+        z-index: 10;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    }
+</style>
 @endsection
