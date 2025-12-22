@@ -1,391 +1,346 @@
 @extends('layouts.app')
 
-@section('title', 'Detail Frequency Rules - ' . $jenisPelanggaran->nama_pelanggaran)
-
 @section('content')
-<div class="container-fluid">
-    <!-- Header -->
-    <div class="row mb-3">
-        <div class="col-12">
-            <a href="{{ route('frequency-rules.index') }}" class="btn btn-secondary mb-2">
-                <i class="fas fa-arrow-left"></i> Kembali
-            </a>
-            <h4><i class="fas fa-sliders-h mr-2"></i> Frequency Rules: {{ $jenisPelanggaran->nama_pelanggaran }}</h4>
-            <p class="text-muted">
-                @php
-                    $kategoriNama = $jenisPelanggaran->kategoriPelanggaran->nama_kategori ?? 'Unknown';
-                    $badgeClass = $kategoriNama == 'Ringan' ? 'info' : ($kategoriNama == 'Sedang' ? 'warning' : 'danger');
-                @endphp
-                Kategori: <span class="badge badge-{{ $badgeClass }}">{{ $kategoriNama }}</span>
-                | Poin Default: <span class="badge badge-secondary">{{ $jenisPelanggaran->poin }} poin</span>
-            </p>
-        </div>
-    </div>
 
-    @if(session('success'))
-        <div class="alert alert-success alert-dismissible fade show">
-            {{ session('success') }}
-            <button type="button" class="close" data-dismiss="alert">&times;</button>
-        </div>
-    @endif
+{{-- 1. TAILWIND CONFIG & SETUP --}}
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                colors: {
+                    primary: '#0f172a',
+                    accent: '#3b82f6',
+                    success: '#10b981',
+                    info: '#3b82f6',
+                    warning: '#f59e0b',
+                    danger: '#f43f5e',
+                    indigo: { 600: '#4f46e5', 50: '#eef2ff', 100: '#e0e7ff', 700: '#4338ca' }
+                }
+            }
+        },
+        corePlugins: { preflight: false }
+    }
+</script>
 
-    <!-- Info & Actions -->
-    <div class="row mb-3">
-        <div class="col-12">
-            @if($jenisPelanggaran->frequencyRules->count() == 0)
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle"></i> 
-                    <strong>Belum ada frequency rules untuk pelanggaran ini.</strong>
-                    <br>Tambahkan rule pertama untuk mulai menggunakan sistem frequency-based point.
-                    <br><small class="text-muted">Jika tidak ada frequency rules, sistem akan menggunakan poin default ({{ $jenisPelanggaran->poin }} poin) setiap kali pelanggaran tercatat.</small>
+<div class="page-wrap-custom min-h-screen p-6">
+    <div class="max-w-7xl mx-auto">
+        
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-3 gap-1 pb-1 custom-header-row">
+            <div class="flex items-center gap-4">
+                <a href="{{ route('frequency-rules.index') }}" class="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 transition-all shadow-sm no-underline">
+                    <i class="fas fa-arrow-left"></i>
+                </a>
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-800 m-0 tracking-tight">Frequency Rules</h1>
+                    <p class="text-slate-500 text-sm mt-1 flex items-center gap-2">
+                        <span class="font-bold text-slate-700">{{ $jenisPelanggaran->nama_pelanggaran }}</span>
+                        <span class="text-slate-300">|</span>
+                        @php
+                            $kategoriNama = $jenisPelanggaran->kategoriPelanggaran->nama_kategori ?? 'Unknown';
+                            $colorClass = $kategoriNama == 'Ringan' ? 'text-blue-600 bg-blue-50 border-blue-100' : ($kategoriNama == 'Sedang' ? 'text-amber-600 bg-amber-50 border-amber-100' : 'text-rose-600 bg-rose-50 border-rose-100');
+                        @endphp
+                        <span class="px-2 py-0.5 rounded border {{ $colorClass }} text-[10px] font-black uppercase">{{ $kategoriNama }}</span>
+                    </p>
                 </div>
-            @endif
-            <button class="btn btn-primary" data-toggle="modal" data-target="#modalAddRule">
-                <i class="fas fa-plus"></i> Tambah Rule
-            </button>
-            <a href="{{ route('jenis-pelanggaran.edit', $jenisPelanggaran->id) }}" class="btn btn-warning">
-                <i class="fas fa-edit"></i> Edit Jenis Pelanggaran
-            </a>
-            <form action="{{ route('jenis-pelanggaran.destroy', $jenisPelanggaran->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Yakin ingin menghapus jenis pelanggaran ini?\n\nSemua frequency rules akan ikut terhapus!\n\nData riwayat pelanggaran yang sudah tercatat TIDAK akan terhapus.');">
-                @csrf
-                @method('DELETE')
-                <button type="submit" class="btn btn-danger">
-                    <i class="fas fa-trash"></i> Hapus Jenis Pelanggaran
+            </div>
+            
+            <div class="flex gap-2">
+                <button class="btn-primary-custom" data-toggle="modal" data-target="#modalAddRule">
+                    <i class="fas fa-plus-circle mr-2"></i> Tambah Rule
                 </button>
-            </form>
+                <a href="{{ route('jenis-pelanggaran.edit', $jenisPelanggaran->id) }}" class="btn-filter-secondary no-underline flex items-center gap-2">
+                    <i class="fas fa-edit"></i> Edit
+                </a>
+            </div>
         </div>
-    </div>
 
-    <!-- Table Rules -->
-    <div class="card">
-        <div class="card-body">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th width="5%">Order</th>
-                        <th width="12%">Frekuensi</th>
-                        <th width="8%">Poin</th>
-                        <th width="35%">Sanksi / Keterangan</th>
-                        <th width="10%" class="text-center">Surat</th>
-                        <th width="18%">Pembina</th>
-                        <th width="12%" class="text-center">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($jenisPelanggaran->frequencyRules as $rule)
-                    <tr>
-                        <td class="text-center">
-                            <span class="badge badge-secondary">{{ $rule->display_order }}</span>
-                        </td>
-                        <td>
-                            <span class="badge badge-primary badge-lg">
-                                @if($rule->frequency_max)
-                                    {{ $rule->frequency_min }}-{{ $rule->frequency_max }}x
+        {{-- ALERTS --}}
+        @if(session('success'))
+            <div class="mb-4 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center gap-3 shadow-sm alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle text-emerald-600"></i>
+                <span class="font-medium text-sm">{{ session('success') }}</span>
+                <button type="button" class="close ml-auto outline-none border-none bg-transparent" data-dismiss="alert">&times;</button>
+            </div>
+        @endif
+
+        @if($jenisPelanggaran->frequencyRules->count() == 0)
+            <div class="mb-6 p-4 bg-blue-50 border-l-4 border-blue-500 rounded-r-xl shadow-sm">
+                <div class="flex gap-3">
+                    <i class="fas fa-info-circle mt-1 text-blue-600"></i>
+                    <div class="text-sm text-blue-800">
+                        <span class="font-bold">Belum ada rule:</span> Sistem akan menggunakan poin default 
+                        <span class="font-black">({{ $jenisPelanggaran->poin }} poin)</span> setiap kali tercatat.
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        {{-- MAIN SOLID TABLE --}}
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse custom-solid-table">
+                    <thead>
+                        <tr class="text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50 border-b border-slate-100">
+                            <th class="px-6 py-4 w-16 text-center">Order</th>
+                            <th class="px-6 py-4 w-32">Frekuensi</th>
+                            <th class="px-6 py-4 w-24">Poin</th>
+                            <th class="px-6 py-4">Sanksi / Deskripsi</th>
+                            <th class="px-6 py-4 w-32 text-center">Surat</th>
+                            <th class="px-6 py-4">Pembina</th>
+                            <th class="px-6 py-4 text-center w-24 pr-8">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 text-sm">
+                        @forelse($jenisPelanggaran->frequencyRules as $rule)
+                        <tr class="hover:bg-slate-50/50 transition-colors">
+                            <td class="px-6 py-4 text-center">
+                                <span class="text-xs font-black text-slate-400">{{ $rule->display_order }}</span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="px-2 py-1 rounded bg-slate-800 text-white text-[10px] font-bold whitespace-nowrap">
+                                    @if($rule->frequency_max)
+                                        {{ $rule->frequency_min }}-{{ $rule->frequency_max }}x
+                                    @else
+                                        {{ $rule->frequency_min }}+x
+                                    @endif
+                                </span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="text-sm font-bold {{ $rule->poin > 0 ? 'text-rose-600' : 'text-slate-400' }}">
+                                    +{{ $rule->poin }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="text-slate-700 font-medium leading-tight">{{ $rule->sanksi_description }}</div>
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                @if($rule->trigger_surat)
+                                    <span class="px-2 py-1 rounded bg-amber-50 text-amber-600 border border-amber-100 text-[9px] font-black uppercase">
+                                        <i class="fas fa-envelope mr-1"></i> Ya
+                                    </span>
                                 @else
-                                    {{ $rule->frequency_min }}+x
+                                    <span class="text-slate-300 text-[10px] font-bold uppercase tracking-tighter">Tidak</span>
                                 @endif
-                            </span>
-                        </td>
-                        <td>
-                            @if($rule->poin > 0)
-                                <span class="badge badge-danger badge-lg">+{{ $rule->poin }}</span>
-                            @else
-                                <span class="badge badge-secondary">0</span>
-                            @endif
-                        </td>
-                        <td>
-                            <strong class="text-dark">{{ $rule->sanksi_description }}</strong>
-                        </td>
-                        <td class="text-center">
-                            @if($rule->trigger_surat)
-                                <span class="badge badge-warning"><i class="fas fa-envelope"></i> Ya</span>
-                            @else
-                                <span class="badge badge-secondary">Tidak</span>
-                            @endif
-                        </td>
-                        <td>
-                            @foreach($rule->pembina_roles as $role)
-                                @if($role == 'Semua Guru & Staff')
-                                    <span class="badge badge-primary mb-1"><i class="fas fa-users"></i> {{ $role }}</span>
-                                @else
-                                    <span class="badge badge-info mb-1">{{ $role }}</span>
-                                @endif
-                            @endforeach
-                        </td>
-                        <td class="text-center">
-                            <button class="btn btn-sm btn-warning btn-edit-rule" 
-                                    data-id="{{ $rule->id }}"
-                                    data-frequency-min="{{ $rule->frequency_min }}"
-                                    data-frequency-max="{{ $rule->frequency_max }}"
-                                    data-poin="{{ $rule->poin }}"
-                                    data-sanksi="{{ $rule->sanksi_description }}"
-                                    data-trigger-surat="{{ $rule->trigger_surat }}"
-                                    data-pembina-roles="{{ json_encode($rule->pembina_roles) }}"
-                                    data-display-order="{{ $rule->display_order }}">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <form action="{{ route('frequency-rules.destroy', $rule->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Yakin ingin menghapus rule ini?')">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn btn-sm btn-danger">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </form>
-                        </td>
-                    </tr>
-                    @empty
-                    <tr>
-                        <td colspan="7" class="text-center text-muted">Belum ada frequency rules. Klik "Tambah Rule" untuk menambahkan.</td>
-                    </tr>
-                    @endforelse
-                </tbody>
-            </table>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="flex flex-wrap gap-1">
+                                    @foreach($rule->pembina_roles as $role)
+                                        <span class="text-[9px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-bold uppercase border border-indigo-100 whitespace-nowrap">
+                                            {{ $role }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 text-center pr-8">
+                                <div class="flex items-center justify-center gap-1">
+                                    <button class="btn-action hover:text-amber-500 hover:border-amber-100 btn-edit-rule" 
+                                            data-id="{{ $rule->id }}"
+                                            data-frequency-min="{{ $rule->frequency_min }}"
+                                            data-frequency-max="{{ $rule->frequency_max }}"
+                                            data-poin="{{ $rule->poin }}"
+                                            data-sanksi="{{ $rule->sanksi_description }}"
+                                            data-trigger-surat="{{ $rule->trigger_surat }}"
+                                            data-pembina-roles="{{ json_encode($rule->pembina_roles) }}"
+                                            data-display-order="{{ $rule->display_order }}">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <form action="{{ route('frequency-rules.destroy', $rule->id) }}" method="POST" class="m-0" onsubmit="return confirm('Hapus rule ini?')">
+                                        @csrf @method('DELETE')
+                                        <button class="btn-action hover:text-rose-500 hover:border-rose-100 outline-none"><i class="fas fa-trash"></i></button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        @empty
+                        <tr><td colspan="7" class="px-6 py-12 text-center text-slate-400 italic">Belum ada frequency rules.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- Modal Add Rule -->
+{{-- MODALS TETAP MENGGUNAKAN LOGIKA ASLI (Hanya Refactor Style) --}}
 <div class="modal fade" id="modalAddRule" tabindex="-1">
     <div class="modal-dialog modal-lg">
-        <div class="modal-content">
+        <div class="modal-content rounded-2xl border-none shadow-2xl overflow-hidden">
             <form action="{{ route('frequency-rules.store', $jenisPelanggaran->id) }}" method="POST" id="formAddRule">
                 @csrf
-                <div class="modal-header">
-                    <h5 class="modal-title">Tambah Frequency Rule</h5>
-                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <div class="modal-header bg-indigo-600 text-white border-none p-6">
+                    <h5 class="modal-title font-bold">Tambah Frequency Rule</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body p-6 bg-slate-50 space-y-4">
                     @php
-                        // Calculate smart defaults
                         $existingRules = $jenisPelanggaran->frequencyRules;
-                        $suggestedFreqMin = 1;
-                        $suggestedDisplayOrder = 1;
-                        
+                        $suggestedFreqMin = 1; $suggestedDisplayOrder = 1;
                         if ($existingRules->isNotEmpty()) {
                             $highestMax = $existingRules->max('frequency_max');
-                            if ($highestMax !== null) {
-                                $suggestedFreqMin = $highestMax + 1;
-                            } else {
-                                // Open-ended rule exists, suggest after highest min
-                                $highestMin = $existingRules->max('frequency_min');
-                                $suggestedFreqMin = $highestMin + 1;
-                            }
+                            $suggestedFreqMin = $highestMax !== null ? $highestMax + 1 : $existingRules->max('frequency_min') + 1;
                             $suggestedDisplayOrder = $existingRules->max('display_order') + 1;
                         }
                     @endphp
                     
-                    <div class="alert alert-info alert-sm">
-                        <i class="fas fa-info-circle"></i> 
-                        <strong>Tentang Frekuensi:</strong>
-                        <ul class="mb-0 mt-2">
-                            <li><strong>Range (Min-Max):</strong> Rule trigger untuk beberapa frekuensi. Contoh: min=1, max=3 → trigger di 1x, 2x, OR 3x</li>
-                            <li><strong>Exact (Min=Max):</strong> Rule trigger pada frekuensi spesifik. Contoh: min=3, max=3 → trigger ONLY di 3x</li>
-                            <li><strong>Open-ended (Max kosong):</strong> Rule trigger dari frekuensi min ke atas. Contoh: min=7, max=(kosong) → trigger di 7x, 8x, 9x, ...</li>
-                        </ul>
-                        <div class="mt-2 p-2 bg-light rounded">
-                            <strong>💡 Tip:</strong> Untuk sanksi progresif, gunakan range. Untuk sanksi specific, set min=max.
-                        </div>
-                    </div>
-                    
-                    <!-- Exact Frequency Helper -->
-                    <div class="form-group">
-                        <div class="custom-control custom-switch">
-                            <input type="checkbox" class="custom-control-input" id="exactFrequencyMode">
-                            <label class="custom-control-label" for="exactFrequencyMode">
-                                <strong>Mode Frekuensi Exact</strong>
-                                <br><small class="text-muted">Aktifkan untuk rule yang trigger pada frekuensi spesifik (min=max)</small>
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label>Frekuensi Min <span class="text-danger">*</span></label>
-                                <input type="number" name="frequency_min" id="add_frequency_min" class="form-control" value="{{ old('frequency_min', $suggestedFreqMin) }}" min="1" required>
-                                <small class="form-text text-success">
-                                    <i class="fas fa-lightbulb"></i> Rekomendasi: {{ $suggestedFreqMin }} (dari rule yang ada)
-                                </small>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-white p-4 rounded-xl border border-slate-200">
+                            <label class="text-[10px] font-bold text-slate-400 uppercase mb-2 block tracking-widest">Atur Frekuensi</label>
+                            <div class="custom-control custom-switch mb-3">
+                                <input type="checkbox" class="custom-control-input" id="exactFrequencyMode">
+                                <label class="custom-control-label text-xs font-bold text-slate-700" for="exactFrequencyMode">Mode Exact (Min=Max)</label>
+                            </div>
+                            <div class="flex gap-2">
+                                <div class="flex-1">
+                                    <input type="number" name="frequency_min" id="add_frequency_min" class="custom-input-clean w-full" value="{{ old('frequency_min', $suggestedFreqMin) }}" min="1" required placeholder="Min">
+                                </div>
+                                <div class="flex-1">
+                                    <input type="number" name="frequency_max" id="add_frequency_max" class="custom-input-clean w-full" min="1" placeholder="Max (Opsional)">
+                                </div>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label>Frekuensi Max <small class="text-muted">(opsional)</small></label>
-                                <input type="number" name="frequency_max" id="add_frequency_max" class="form-control" min="1" placeholder="Kosongkan untuk unlimited">
-                                <small class="form-text text-muted" id="maxHelpText">Contoh: 1-3x, 4-10x, 11+x</small>
-                                <small class="form-text text-info" id="exactHelpText" style="display:none;">
-                                    <i class="fas fa-info-circle"></i> Mode exact: Max akan sama dengan Min
-                                </small>
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 flex flex-col justify-between">
+                            <div>
+                                <label class="text-[10px] font-bold text-slate-400 uppercase mb-2 block tracking-widest">Poin & Urutan</label>
+                                <div class="flex gap-2">
+                                    <input type="number" name="poin" class="custom-input-clean w-full" placeholder="Poin" required min="0" value="0">
+                                    <input type="number" name="display_order" class="custom-input-clean w-full" value="{{ $suggestedDisplayOrder }}" min="1">
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 mt-3">
+                                <input type="checkbox" name="trigger_surat" value="1" id="trigger_surat_add" class="w-4 h-4 rounded text-indigo-600">
+                                <label for="trigger_surat_add" class="text-xs font-bold text-amber-600 mb-0">Trigger Surat Pemanggilan</label>
                             </div>
                         </div>
                     </div>
-                    
-                    <div class="form-group">
-                        <label>Poin <span class="text-danger">*</span></label>
-                        <input type="number" name="poin" class="form-control" required min="0" value="0">
-                        <small class="text-muted">Isi 0 jika hanya pembinaan tanpa poin</small>
+
+                    <div class="bg-white p-4 rounded-xl border border-slate-200">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase mb-2 block tracking-widest">Deskripsi Sanksi</label>
+                        <textarea name="sanksi_description" class="custom-input-clean w-full" rows="2" required placeholder="Tulis rincian sanksi..."></textarea>
                     </div>
-                    
-                    <div class="form-group">
-                        <label>Sanksi / Keterangan <span class="text-danger">*</span></label>
-                        <textarea name="sanksi_description" class="form-control" rows="3" required placeholder="Contoh: Dipotong rambutnya di sekolah, Pembinaan oleh wali kelas, dll"></textarea>
-                    </div>
-                    
-                    <div class="form-group">
-                        <div class="custom-control custom-checkbox">
-                            <input type="checkbox" name="trigger_surat" value="1" class="custom-control-input" id="trigger_surat_add">
-                            <label class="custom-control-label" for="trigger_surat_add">
-                                <strong>Trigger Surat Pemanggilan Orang Tua</strong>
-                                <br><small class="text-muted">Centang jika sanksi ini memerlukan pemanggilan orang tua</small>
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Pembina yang Terlibat <span class="text-danger">*</span></label>
-                        <div class="border rounded p-3">
-                            <div class="custom-control custom-checkbox mb-2 border-bottom pb-2">
-                                <input type="checkbox" name="pembina_roles[]" value="Semua Guru & Staff" class="custom-control-input" id="pembina_semua_add">
-                                <label class="custom-control-label font-weight-bold text-primary" for="pembina_semua_add">
-                                    <i class="fas fa-users"></i> Semua Guru & Staff
-                                    <br><small class="text-muted font-weight-normal">Untuk pelanggaran yang bisa ditindaklanjuti oleh siapa saja yang melihat (contoh: atribut, kerapian)</small>
+
+                    <div class="bg-white p-4 rounded-xl border border-slate-200">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase mb-2 block tracking-widest">Pembina Terkait</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            @foreach(['Semua Guru & Staff', 'Wali Kelas', 'Kaprodi', 'Waka Kesiswaan', 'Waka Sarana', 'Kepala Sekolah'] as $role)
+                                <label class="flex items-center gap-2 text-xs text-slate-600 mb-0 cursor-pointer">
+                                    <input type="checkbox" name="pembina_roles[]" value="{{ $role }}" class="rounded text-indigo-600"> {{ $role }}
                                 </label>
-                            </div>
-                            <div class="custom-control custom-checkbox">
-                                <input type="checkbox" name="pembina_roles[]" value="Wali Kelas" class="custom-control-input" id="pembina_wali_add">
-                                <label class="custom-control-label" for="pembina_wali_add">Wali Kelas</label>
-                            </div>
-                            <div class="custom-control custom-checkbox">
-                                <input type="checkbox" name="pembina_roles[]" value="Kaprodi" class="custom-control-input" id="pembina_kaprodi_add">
-                                <label class="custom-control-label" for="pembina_kaprodi_add">Kaprodi</label>
-                            </div>
-                            <div class="custom-control custom-checkbox">
-                                <input type="checkbox" name="pembina_roles[]" value="Waka Kesiswaan" class="custom-control-input" id="pembina_waka_add">
-                                <label class="custom-control-label" for="pembina_waka_add">Waka Kesiswaan</label>
-                            </div>
-                            <div class="custom-control custom-checkbox">
-                                <input type="checkbox" name="pembina_roles[]" value="Waka Sarana" class="custom-control-input" id="pembina_sarana_add">
-                                <label class="custom-control-label" for="pembina_sarana_add">Waka Sarana</label>
-                            </div>
-                            <div class="custom-control custom-checkbox">
-                                <input type="checkbox" name="pembina_roles[]" value="Kepala Sekolah" class="custom-control-input" id="pembina_kepsek_add">
-                                <label class="custom-control-label" for="pembina_kepsek_add">Kepala Sekolah</label>
-                            </div>
+                            @endforeach
                         </div>
-                        <small class="text-muted">Pilih satu atau lebih pembina yang akan menangani sanksi ini</small>
-                    </div>
-                    
-                    <!-- Display Order -->
-                    <div class="form-group">
-                        <label>Urutan Tampilan</label>
-                        <input type="number" name="display_order" class="form-control" value="{{ $suggestedDisplayOrder }}" min="1">
-                        <small class="form-text text-success">
-                            <i class="fas fa-lightbulb"></i> Rekomendasi: {{ $suggestedDisplayOrder }}
-                        </small>
-                    </div>
-                    
-                    <!-- Examples -->
-                    <div class="alert alert-secondary">
-                        <strong><i class="fas fa-examples"></i> Contoh Penggunaan:</strong>
-                        <ul class="mb-0 mt-2">
-                            <li><strong>Progressive (range):</strong> Frek 1-3 → Teguran (10 poin), Frek 4-6 → Surat (30 poin), Frek 7+ → Panggil ortu (80 poin)</li>
-                            <li><strong>Exact trigger:</strong> Frek 3 (min=3, max=3) → Skorsing 1 hari</li>
-                            <li><strong>Single action:</strong> Frek 1 (min=1, max=1) → Langsung potong rambut (untuk rambut panjang)</li>
-                        </ul>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary">Simpan</button>
+                <div class="modal-footer bg-white p-4 gap-2">
+                    <button type="button" class="btn-filter-secondary" data-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn-filter-primary bg-indigo-600 border-none">Simpan Rule</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<!-- Modal Edit Rule -->
 <div class="modal fade" id="modalEditRule" tabindex="-1">
     <div class="modal-dialog modal-lg">
-        <div class="modal-content">
+        <div class="modal-content rounded-2xl border-none shadow-2xl overflow-hidden">
             <form id="formEditRule" method="POST">
-                @csrf
-                @method('PUT')
-                <div class="modal-header">
-                    <h5 class="modal-title">Edit Frequency Rule</h5>
-                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                @csrf @method('PUT')
+                <div class="modal-header bg-slate-800 text-white border-none p-6">
+                    <h5 class="modal-title font-bold">Edit Frequency Rule</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
                 </div>
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label>Frekuensi Min</label>
-                                <input type="number" name="frequency_min" id="edit_frequency_min" class="form-control" min="1">
+                <div class="modal-body p-6 bg-slate-50 space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-white p-4 rounded-xl border border-slate-200">
+                            <label class="text-[10px] font-bold text-slate-400 uppercase mb-2 block tracking-widest">Ubah Frekuensi</label>
+                            <div class="flex gap-2">
+                                <input type="number" name="frequency_min" id="edit_frequency_min" class="custom-input-clean w-full" min="1" required>
+                                <input type="number" name="frequency_max" id="edit_frequency_max" class="custom-input-clean w-full" min="1">
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label>Frekuensi Max <small class="text-muted">(opsional)</small></label>
-                                <input type="number" name="frequency_max" id="edit_frequency_max" class="form-control" min="1">
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 flex flex-col justify-between">
+                            <div class="flex gap-2">
+                                <div class="w-full">
+                                    <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Poin</label>
+                                    <input type="number" name="poin" id="edit_poin" class="custom-input-clean w-full" required min="0">
+                                </div>
+                                <div class="w-full">
+                                    <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Urutan</label>
+                                    <input type="number" name="display_order" id="edit_display_order" class="custom-input-clean w-full" min="1">
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 mt-3">
+                                <input type="checkbox" name="trigger_surat" value="1" id="edit_trigger_surat" class="w-4 h-4 rounded text-indigo-600">
+                                <label for="edit_trigger_surat" class="text-xs font-bold text-amber-600 mb-0">Trigger Surat</label>
                             </div>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label>Poin <span class="text-danger">*</span></label>
-                        <input type="number" name="poin" id="edit_poin" class="form-control" required min="0">
+                    <div class="bg-white p-4 rounded-xl border border-slate-200">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase mb-2 block tracking-widest">Sanksi</label>
+                        <textarea name="sanksi_description" id="edit_sanksi" class="custom-input-clean w-full" rows="2" required></textarea>
                     </div>
-                    <div class="form-group">
-                        <label>Sanksi / Keterangan <span class="text-danger">*</span></label>
-                        <textarea name="sanksi_description" id="edit_sanksi" class="form-control" rows="3" required></textarea>
-                    </div>
-                    <div class="form-group">
-                        <div class="custom-control custom-checkbox">
-                            <input type="checkbox" name="trigger_surat" value="1" class="custom-control-input" id="edit_trigger_surat">
-                            <label class="custom-control-label" for="edit_trigger_surat">
-                                <strong>Trigger Surat Pemanggilan Orang Tua</strong>
-                            </label>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Pembina yang Terlibat <span class="text-danger">*</span></label>
-                        <div class="border rounded p-3">
-                            <div class="custom-control custom-checkbox mb-2 border-bottom pb-2">
-                                <input type="checkbox" name="pembina_roles[]" value="Semua Guru & Staff" class="custom-control-input pembina-checkbox-edit" id="edit_pembina_semua">
-                                <label class="custom-control-label font-weight-bold text-primary" for="edit_pembina_semua">
-                                    <i class="fas fa-users"></i> Semua Guru & Staff
-                                    <br><small class="text-muted font-weight-normal">Untuk pelanggaran yang bisa ditindaklanjuti oleh siapa saja yang melihat</small>
+                    <div class="bg-white p-4 rounded-xl border border-slate-200">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase mb-2 block tracking-widest">Pembina</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            @foreach(['Semua Guru & Staff', 'Wali Kelas', 'Kaprodi', 'Waka Kesiswaan', 'Waka Sarana', 'Kepala Sekolah'] as $role)
+                                <label class="flex items-center gap-2 text-xs text-slate-600 mb-0 cursor-pointer">
+                                    <input type="checkbox" name="pembina_roles[]" value="{{ $role }}" class="pembina-checkbox-edit rounded text-indigo-600"> {{ $role }}
                                 </label>
-                            </div>
-                            <div class="custom-control custom-checkbox">
-                                <input type="checkbox" name="pembina_roles[]" value="Wali Kelas" class="custom-control-input pembina-checkbox-edit" id="edit_pembina_wali">
-                                <label class="custom-control-label" for="edit_pembina_wali">Wali Kelas</label>
-                            </div>
-                            <div class="custom-control custom-checkbox">
-                                <input type="checkbox" name="pembina_roles[]" value="Kaprodi" class="custom-control-input pembina-checkbox-edit" id="edit_pembina_kaprodi">
-                                <label class="custom-control-label" for="edit_pembina_kaprodi">Kaprodi</label>
-                            </div>
-                            <div class="custom-control custom-checkbox">
-                                <input type="checkbox" name="pembina_roles[]" value="Waka Kesiswaan" class="custom-control-input pembina-checkbox-edit" id="edit_pembina_waka">
-                                <label class="custom-control-label" for="edit_pembina_waka">Waka Kesiswaan</label>
-                            </div>
-                            <div class="custom-control custom-checkbox">
-                                <input type="checkbox" name="pembina_roles[]" value="Waka Sarana" class="custom-control-input pembina-checkbox-edit" id="edit_pembina_sarana">
-                                <label class="custom-control-label" for="edit_pembina_sarana">Waka Sarana</label>
-                            </div>
-                            <div class="custom-control custom-checkbox">
-                                <input type="checkbox" name="pembina_roles[]" value="Kepala Sekolah" class="custom-control-input pembina-checkbox-edit" id="edit_pembina_kepsek">
-                                <label class="custom-control-label" for="edit_pembina_kepsek">Kepala Sekolah</label>
-                            </div>
+                            @endforeach
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary">Update</button>
+                <div class="modal-footer bg-white p-4 gap-2">
+                    <button type="button" class="btn-filter-secondary" data-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn-filter-primary bg-slate-800 border-none">Update Rule</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+
+@endsection
+
+@section('styles')
+<style>
+/* --- CORE STYLING (Solid Precision) --- */
+.page-wrap-custom { background: #f8fafc; min-height: 100vh; padding: 1.5rem; font-family: 'Inter', sans-serif; }
+.custom-header-row { border-bottom: 1px solid #e2e8f0; }
+
+.btn-primary-custom {
+    background-color: #4f46e5; color: white !important; padding: 0.6rem 1.2rem; border-radius: 0.75rem;
+    font-weight: 700; font-size: 0.85rem; border: none; display: inline-flex; align-items: center;
+    transition: all 0.2s; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2); text-decoration: none !important;
+}
+.btn-primary-custom:hover { background-color: #4338ca; transform: translateY(-1px); }
+
+/* Form Controls */
+.custom-input-clean {
+    border: 1px solid #e2e8f0; border-radius: 0.75rem; padding: 0.5rem 0.8rem;
+    font-size: 0.85rem; background: white; outline: none; transition: 0.2s;
+}
+.custom-input-clean:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
+
+.btn-filter-primary {
+    background: #4f46e5; color: white; border: none; border-radius: 0.75rem; font-weight: 700; font-size: 0.8rem; transition: 0.2s; cursor: pointer;
+}
+.btn-filter-secondary {
+    background: #f1f5f9; color: #475569; border-radius: 0.75rem; font-weight: 700; font-size: 0.8rem; border: none; cursor: pointer;
+}
+
+/* Solid Table Styling */
+.custom-solid-table thead th { vertical-align: middle; }
+.custom-solid-table tbody td { vertical-align: middle; border-top: 1px solid #f1f5f9; }
+
+.btn-action { 
+    width: 32px; height: 32px; border-radius: 8px; transition: 0.2s; color: #94a3b8; border: 1px solid transparent; 
+    background: transparent; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+}
+.btn-action:hover { background: #f8fafc; border-color: #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+
+.close { background: transparent; border: none; font-size: 1.5rem; cursor: pointer; }
+.modal-backdrop { opacity: 0.5 !important; }
+</style>
+@endsection
 
 @push('scripts')
 <script>
@@ -393,70 +348,43 @@ $(document).ready(function() {
     // Exact Frequency Mode Toggle
     $('#exactFrequencyMode').change(function() {
         const isExact = $(this).is(':checked');
-        const minInput = $('#add_frequency_min');
         const maxInput = $('#add_frequency_max');
-        
         if (isExact) {
-            // Exact mode: max = min
-            maxInput.prop('readonly', true);
-            maxInput.addClass('bg-light');
-            $('#maxHelpText').hide();
-            $('#exactHelpText').show();
-            
-            // Sync max with min
-            maxInput.val(minInput.val());
+            maxInput.prop('readonly', true).addClass('bg-slate-50 text-slate-400');
+            maxInput.val($('#add_frequency_min').val());
         } else {
-            // Range mode: max is editable
-            maxInput.prop('readonly', false);
-            maxInput.removeClass('bg-light');
-            $('#maxHelpText').show();
-            $('#exactHelpText').hide();
+            maxInput.prop('readonly', false).removeClass('bg-slate-50 text-slate-400');
         }
     });
     
-    //When min changes in exact mode, update max
     $('#add_frequency_min').on('input', function() {
-        if ($('#exactFrequencyMode').is(':checked')) {
-            $('#add_frequency_max').val($(this).val());
-        }
+        if ($('#exactFrequencyMode').is(':checked')) { $('#add_frequency_max').val($(this).val()); }
     });
-    
-    // Reset form when modal closes
+
+    // Reset modal
     $('#modalAddRule').on('hidden.bs.modal', function() {
         $('#formAddRule')[0].reset();
         $('#exactFrequencyMode').prop('checked', false).trigger('change');
-        // Reset to suggested defaults
         $('#add_frequency_min').val('{{ $suggestedFreqMin ?? 1 }}');
     });
-    
-    // Edit rule
+
+    // Edit rule trigger (Same logic as provided)
     $('.btn-edit-rule').click(function() {
         const id = $(this).data('id');
-        const freqMin = $(this).data('frequency-min');
-        const freqMax = $(this).data('frequency-max');
-        const poin = $(this).data('poin');
-        const sanksi = $(this).data('sanksi');
-        const triggerSurat = $(this).data('trigger-surat');
-        const pembinaRoles = $(this).data('pembina-roles');
-        
         $('#formEditRule').attr('action', `/frequency-rules/rule/${id}`);
-        $('#edit_frequency_min').val(freqMin);
-        $('#edit_frequency_max').val(freqMax || '');
-        $('#edit_poin').val(poin);
-        $('#edit_sanksi').val(sanksi);
-        $('#edit_trigger_surat').prop('checked', triggerSurat == 1);
+        $('#edit_frequency_min').val($(this).data('frequency-min'));
+        $('#edit_frequency_max').val($(this).data('frequency-max') || '');
+        $('#edit_poin').val($(this).data('poin'));
+        $('#edit_sanksi').val($(this).data('sanksi'));
+        $('#edit_display_order').val($(this).data('display-order'));
+        $('#edit_trigger_surat').prop('checked', $(this).data('trigger-surat') == 1);
         
-        // Uncheck all pembina checkboxes first
         $('.pembina-checkbox-edit').prop('checked', false);
-        
-        // Check the selected pembina roles
-        pembinaRoles.forEach(role => {
-            $(`.pembina-checkbox-edit[value="${role}"]`).prop('checked', true);
-        });
+        const roles = $(this).data('pembina-roles');
+        roles.forEach(role => { $(`.pembina-checkbox-edit[value="${role}"]`).prop('checked', true); });
         
         $('#modalEditRule').modal('show');
     });
 });
 </script>
 @endpush
-@endsection
