@@ -65,20 +65,28 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // ===================================================================
-    // SURAT PANGGILAN ROUTES
+    // SURAT PANGGILAN MANAGEMENT ROUTES
     // ===================================================================
     
-    Route::prefix('surat-panggilan')->name('surat-panggilan.')->group(function () {
-        // Generate/Print surat
-        Route::get('/{id}', [TindakLanjutController::class, 'printSurat'])
-            ->name('print');
-
-        // Download PDF
-        Route::get('/{id}/pdf', [TindakLanjutController::class, 'downloadPdf'])
-            ->name('pdf');
-
-        // Send email
-        Route::post('/{id}/send-email', [TindakLanjutController::class, 'sendEmail'])
-            ->name('send-email');
+    Route::prefix('tindak-lanjut/{id}')->name('tindak-lanjut.')->group(function () {
+        // Preview surat (modal/page)
+        Route::get('/preview-surat', [TindakLanjutController::class, 'previewSurat'])
+            ->name('preview-surat');
+        
+        // Edit surat content
+        Route::get('/edit-surat', [TindakLanjutController::class, 'editSurat'])
+            ->name('edit-surat');
+        
+        // Update surat content
+        Route::put('/update-surat', [TindakLanjutController::class, 'updateSurat'])
+            ->name('update-surat');
+        
+        // Cetak surat (Download PDF + Log print activity)
+        Route::get('/cetak-surat', [TindakLanjutController::class, 'cetakSurat'])
+            ->name('cetak-surat');
+        
+        // Mulai Tangani (Change status: Baru -> Sedang Ditangani)
+        Route::put('/mulai-tangani', [TindakLanjutController::class, 'mulaiTangani'])
+            ->name('mulai-tangani');
     });
 });

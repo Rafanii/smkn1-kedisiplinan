@@ -41,7 +41,7 @@
 
 <div class="dashboard-v3 p-3 md:p-6">
 
-    <div class="relative rounded-2xl bg-gradient-to-r from-slate-800 to-blue-900 p-5 md:p-6 shadow-lg mb-8 overflow-hidden text-white flex flex-col md:flex-row items-center justify-between gap-4 border border-blue-800/50">
+    <div class="relative rounded-2xl bg-gradient-to-r from-slate-800 to-blue-900 p-6 shadow-lg mb-8 overflow-hidden text-white flex flex-col md:flex-row items-center justify-between gap-4 border border-blue-800/50">
         
         <div class="absolute top-0 right-0 w-64 h-64 bg-blue-500 opacity-10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
         <div class="absolute bottom-0 left-0 w-40 h-40 bg-cyan-400 opacity-10 rounded-full blur-2xl -ml-10 -mb-10 pointer-events-none"></div>
@@ -52,7 +52,7 @@
                 System Active
             </div>
             <h1 class="text-xl md:text-2xl font-bold leading-tight">
-                Halo, {{ Auth::user()->name ?? 'Operator' }}! 👋
+                Halo, {{ auth()->user()->username ?? 'Operator' }}! 👋
             </h1>
             <p class="text-blue-100 text-xs md:text-sm opacity-80 mt-1">
                 Selamat bekerja, data hari ini siap dikelola.

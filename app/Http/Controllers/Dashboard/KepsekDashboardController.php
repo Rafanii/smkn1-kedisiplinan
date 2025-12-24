@@ -3,128 +3,103 @@
 namespace App\Http\Controllers\Dashboard;
 
 use App\Http\Controllers\Controller;
-use App\Traits\HasStatistics;
-use Illuminate\View\View;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use App\Models\TindakLanjut;
 use App\Models\RiwayatPelanggaran;
 use App\Models\Siswa;
-use App\Models\Jurusan;
-use App\Models\JenisPelanggaran;
-use App\Services\Pelanggaran\PelanggaranRulesEngine;
-use Illuminate\Support\Facades\DB;
 
 class KepsekDashboardController extends Controller
 {
-    use HasStatistics;
-
-    protected $rulesEngine;
-
-    public function __construct(PelanggaranRulesEngine $rulesEngine)
+    public function index(Request $request)
     {
-        $this->rulesEngine = $rulesEngine;
-    }
+        // FILTER (Default: Bulan Ini)
+        $startDate = $request->input('start_date', date('Y-m-01'));
+        $endDate = $request->input('end_date', date('Y-m-d'));
 
-    public function index(): View
-    {
-        // ========== 1. STATISTIK UTAMA (Executive Summary) ==========
-        $totalSiswa = Siswa::count();
-        $pelanggaranBulanIni = RiwayatPelanggaran::whereMonth('tanggal_kejadian', now()->month)->count();
-        $pelanggaranSemesterIni = RiwayatPelanggaran::whereYear('tanggal_kejadian', now()->year)->count();
-        $tindakanTerbuka = TindakLanjut::whereNotIn('status', ['Selesai', 'Ditolak'])->count();
-        
-        // ========== 2. KASUS YANG MENUNGGU PERSETUJUAN (Priority) ==========
-        $listPersetujuan = TindakLanjut::with(['siswa.kelas', 'suratPanggilan'])
+        // KASUS SURAT (Clean & Informatif)
+        // Kepala Sekolah: Tampilkan SEMUA kasus yang melibatkan dia
+        // Biasanya kasus yang memerlukan approval/mengetahui
+        $kasusBaru = TindakLanjut::with(['siswa.kelas', 'suratPanggilan'])
+            ->forPembina('Kepala Sekolah')  // Filter: Hanya yang melibatkan Kepsek
+            ->whereHas('suratPanggilan')  // Filter: Harus punya surat
+            ->whereIn('status', ['Baru', 'Menunggu Persetujuan', 'Disetujui', 'Ditangani'])
+            ->latest()
+            ->get();
+
+        // Kasus Menunggu Approval
+        $kasusMenunggu = TindakLanjut::with(['siswa.kelas', 'suratPanggilan'])
+            ->forPembina('Kepala Sekolah')
             ->where('status', 'Menunggu Persetujuan')
-            ->orderBy('created_at', 'asc')
+            ->latest()
             ->get();
 
-        // ========== 3. TREN PELANGGARAN (Last 7 Days) ==========
-        $trendData = RiwayatPelanggaran::selectRaw('DATE(tanggal_kejadian) as tanggal, COUNT(*) as total')
-            ->where('tanggal_kejadian', '>=', now()->subDays(7))
-            ->groupBy('tanggal')
-            ->orderBy('tanggal')
+        // DIAGRAM: Pelanggaran Populer (SEMUA SISWA DI SEKOLAH)
+        $chartPelanggaran = DB::table('riwayat_pelanggaran')
+            ->join('jenis_pelanggaran', 'riwayat_pelanggaran.jenis_pelanggaran_id', '=', 'jenis_pelanggaran.id')
+            ->whereDate('riwayat_pelanggaran.tanggal_kejadian', '>=', $startDate)
+            ->whereDate('riwayat_pelanggaran.tanggal_kejadian', '<=', $endDate)
+            ->select('jenis_pelanggaran.nama_pelanggaran', DB::raw('count(*) as total'))
+            ->groupBy('jenis_pelanggaran.nama_pelanggaran')
+            ->orderByDesc('total')
+            ->limit(10)
             ->get();
 
-        // ========== 4. TOP JENIS PELANGGARAN ==========
-        $topViolations = RiwayatPelanggaran::selectRaw('jenis_pelanggaran_id, COUNT(*) as jumlah')
-            ->groupBy('jenis_pelanggaran_id')
-            ->orderByDesc('jumlah')
-            ->limit(5)
-            ->get()
-            ->map(function($item) {
-                $item->jenisPelanggaran = $item->jenisPelanggaran;
-                return $item;
-            });
-        
-        // Load relations for top violations
-        $violationIds = $topViolations->pluck('jenis_pelanggaran_id')->toArray();
-        $jenisPelanggaranMap = JenisPelanggaran::whereIn('id', $violationIds)->get()->keyBy('id');
-        
-        $topViolations = $topViolations->map(function($item) use ($jenisPelanggaranMap) {
-            $item->jenisPelanggaran = $jenisPelanggaranMap[$item->jenis_pelanggaran_id] ?? null;
-            return $item;
-        });
+        $chartLabels = $chartPelanggaran->pluck('nama_pelanggaran');
+        $chartData = $chartPelanggaran->pluck('total');
 
-        // ========== 5. BREAKDOWN PER JURUSAN (OPTIMIZED) ==========
-        // OPTIMIZATION: Batch fetch all counts in single queries instead of N queries
-        
-        // Get siswa count per jurusan using subquery
-        $siswaCountPerJurusan = DB::table('kelas')
-            ->join('siswa', 'kelas.id', '=', 'siswa.kelas_id')
-            ->selectRaw('kelas.jurusan_id, COUNT(DISTINCT siswa.id) as siswa_count')
-            ->groupBy('kelas.jurusan_id')
-            ->pluck('siswa_count', 'jurusan_id');
-        
-        // Get pelanggaran count per jurusan using subquery
-        $pelanggaranCountPerJurusan = DB::table('riwayat_pelanggaran')
+        // DIAGRAM 2: Pelanggaran Per Jurusan
+        $chartJurusan = DB::table('riwayat_pelanggaran')
             ->join('siswa', 'riwayat_pelanggaran.siswa_id', '=', 'siswa.id')
             ->join('kelas', 'siswa.kelas_id', '=', 'kelas.id')
-            ->selectRaw('kelas.jurusan_id, COUNT(*) as pelanggaran_count')
-            ->groupBy('kelas.jurusan_id')
-            ->pluck('pelanggaran_count', 'jurusan_id');
-        
-        // Get active tindak lanjut count per jurusan
-        $tindakLanjutCountPerJurusan = DB::table('tindak_lanjut')
-            ->join('siswa', 'tindak_lanjut.siswa_id', '=', 'siswa.id')
-            ->join('kelas', 'siswa.kelas_id', '=', 'kelas.id')
-            ->whereNotIn('tindak_lanjut.status', ['Selesai', 'Ditolak'])
-            ->selectRaw('kelas.jurusan_id, COUNT(*) as tindakan_count')
-            ->groupBy('kelas.jurusan_id')
-            ->pluck('tindakan_count', 'jurusan_id');
-        
-        // Get jurusan with kelas count
-        $jurusanStats = Jurusan::withCount('kelas')
-            ->get()
-            ->map(function($jurusan) use ($siswaCountPerJurusan, $pelanggaranCountPerJurusan, $tindakLanjutCountPerJurusan) {
-                return (object) [
-                    'id' => $jurusan->id,
-                    'nama' => $jurusan->nama_jurusan,
-                    'siswa_count' => $siswaCountPerJurusan[$jurusan->id] ?? 0,
-                    'pelanggaran_count' => $pelanggaranCountPerJurusan[$jurusan->id] ?? 0,
-                    'tindakan_terbuka' => $tindakLanjutCountPerJurusan[$jurusan->id] ?? 0,
-                ];
-            });
+            ->join('jurusan', 'kelas.jurusan_id', '=', 'jurusan.id')
+            ->whereDate('riwayat_pelanggaran.tanggal_kejadian', '>=', $startDate)
+            ->whereDate('riwayat_pelanggaran.tanggal_kejadian', '<=', $endDate)
+            ->select('jurusan.nama_jurusan', DB::raw('count(*) as total'))
+            ->groupBy('jurusan.nama_jurusan')
+            ->orderByDesc('total')
+            ->get();
 
-        // ========== 6. STATISTIK APPROVAL STATUS ==========
-        $statusStats = TindakLanjut::selectRaw('status, COUNT(*) as jumlah')
-            ->groupBy('status')
-            ->pluck('jumlah', 'status');
+        $chartJurusanLabels = $chartJurusan->pluck('nama_jurusan');
+        $chartJurusanData = $chartJurusan->pluck('total');
 
-        // ========== 7. SISWA PERLU PEMBINAAN (Top 5 Highest Points) ==========
-        $siswaPerluPembinaan = $this->rulesEngine->getSiswaPerluPembinaan()
-            ->take(5); // Only top 5 for dashboard widget
+        // DIAGRAM 3: Trend Pelanggaran Bulanan (6 bulan terakhir)
+        $chartTrend = DB::table('riwayat_pelanggaran')
+            ->select(
+                DB::raw("DATE_FORMAT(tanggal_kejadian, '%Y-%m') as bulan"),
+                DB::raw('count(*) as total')
+            )
+            ->where('tanggal_kejadian', '>=', now()->subMonths(6))
+            ->groupBy('bulan')
+            ->orderBy('bulan', 'asc')
+            ->get();
 
-        return view('dashboards.kepsek', [
-            'totalSiswa' => $totalSiswa,
-            'pelanggaranBulanIni' => $pelanggaranBulanIni,
-            'pelanggaranSemesterIni' => $pelanggaranSemesterIni,
-            'tindakanTerbuka' => $tindakanTerbuka,
-            'listPersetujuan' => $listPersetujuan,
-            'trendData' => $trendData,
-            'topViolations' => $topViolations,
-            'jurusanStats' => $jurusanStats,
-            'statusStats' => $statusStats,
-            'siswaPerluPembinaan' => $siswaPerluPembinaan,
-        ]);
+        $chartTrendLabels = $chartTrend->pluck('bulan');
+        $chartTrendData = $chartTrend->pluck('total');
+
+        // STATISTIK
+        $totalSiswa = Siswa::count();
+        $totalKasus = $kasusBaru->count();
+        $totalKasusMenunggu = $kasusMenunggu->count();
+        $totalPelanggaran = RiwayatPelanggaran::whereDate('tanggal_kejadian', '>=', $startDate)
+            ->whereDate('tanggal_kejadian', '<=', $endDate)
+            ->count();
+
+        return view('dashboards.kepsek', compact(
+            'kasusBaru',
+            'kasusMenunggu',
+            'chartLabels', 
+            'chartData',
+            'chartJurusanLabels',
+            'chartJurusanData',
+            'chartTrendLabels',
+            'chartTrendData',
+            'totalSiswa',
+            'totalKasus',
+            'totalKasusMenunggu',
+            'totalPelanggaran',
+            'startDate', 
+            'endDate'
+        ));
     }
 }

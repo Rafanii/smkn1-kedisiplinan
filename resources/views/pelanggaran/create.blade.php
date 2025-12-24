@@ -19,7 +19,26 @@
                 </div>
             </div>
         </div>
-        @endif
+    @endif
+
+    @if($errors->any())
+        <div class="row mb-2">
+            <div class="col-12">
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="fas fa-exclamation-triangle mr-1"></i>
+                    <strong>Error:</strong>
+                    <ul class="mb-0 mt-2">
+                        @foreach($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
 
     <!-- HEADER & BREADCRUMB -->
     <div class="row mb-3">

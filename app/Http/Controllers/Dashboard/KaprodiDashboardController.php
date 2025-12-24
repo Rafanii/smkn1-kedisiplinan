@@ -8,11 +8,11 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Models\RiwayatPelanggaran;
 use App\Models\TindakLanjut;
-use App\Models\Kelas; // <-- Tambahkan ini
+use App\Models\Kelas;
 
 class KaprodiDashboardController extends Controller
 {
-    public function index(Request $request) // <-- Tambahkan Request $request
+    public function index(Request $request)
     {
         $user = Auth::user();
         $jurusan = $user->jurusanDiampu;
@@ -21,66 +21,75 @@ class KaprodiDashboardController extends Controller
             return view('dashboards.kaprodi_no_data');
         }
 
-        // 1. AMBIL INPUT FILTER (Default: Bulan Ini)
+        // FILTER (Default: Bulan Ini)
         $startDate = $request->input('start_date', date('Y-m-01'));
         $endDate = $request->input('end_date', date('Y-m-d'));
-        $kelasId = $request->input('kelas_id'); // Kaprodi bisa filter per kelas
+        $kelasId = $request->input('kelas_id'); // Filter per kelas (optional)
 
-        // 2. SIAPKAN DATA KELAS UNTUK DROPDOWN (Hanya kelas di jurusan ini)
+        // DATA KELAS UNTUK DROPDOWN
         $kelasJurusan = Kelas::where('jurusan_id', $jurusan->id)->get();
 
-        // 3. STATISTIK UTAMA (Dengan Filter Waktu)
-        $totalSiswa = $jurusan->siswa()->count(); // Total siswa biasanya statis
-
-        // Pelanggaran (Filter Waktu & Kelas)
-        $queryPelanggaran = RiwayatPelanggaran::whereHas('siswa.kelas', function($q) use ($jurusan, $kelasId) {
-            $q->where('jurusan_id', $jurusan->id);
-            if ($kelasId) $q->where('id', $kelasId);
-        })->whereDate('tanggal_kejadian', '>=', $startDate)
-          ->whereDate('tanggal_kejadian', '<=', $endDate);
-
-        $pelanggaranBulanIni = $queryPelanggaran->count();
-
-        // Kasus Aktif (Filter Kelas saja, waktu biasanya tidak relevan untuk kasus aktif)
-        $kasusAktif = TindakLanjut::whereHas('siswa.kelas', function($q) use ($jurusan, $kelasId) {
-            $q->where('jurusan_id', $jurusan->id);
-            if ($kelasId) $q->where('id', $kelasId);
-        })->whereIn('status', ['Baru', 'Menunggu Persetujuan', 'Disetujui'])->count();
-
-
-        // 4. GRAFIK PERBANDINGAN KELAS (Juga kena filter waktu)
-        // "Kelas mana yang paling nakal di rentang tanggal ini?"
-        $statistikKelas = DB::table('riwayat_pelanggaran')
-            ->join('siswa', 'riwayat_pelanggaran.siswa_id', '=', 'siswa.id')
+        // SISWA IDS (untuk scope filtering)
+        $siswaIds = DB::table('siswa')
             ->join('kelas', 'siswa.kelas_id', '=', 'kelas.id')
             ->where('kelas.jurusan_id', $jurusan->id)
+            ->when($kelasId, function($q) use ($kelasId) {
+                return $q->where('kelas.id', $kelasId);
+            })
+            ->pluck('siswa.id');
+
+        // KASUS SURAT (Clean & Informatif)
+        // Hanya tampilkan kasus yang:
+        // 1. Siswa di jurusan ini
+        // 2. Melibatkan Kaprodi
+        // 3. Punya surat panggilan
+        $kasusBaru = TindakLanjut::with(['siswa.kelas', 'suratPanggilan'])
+            ->whereIn('siswa_id', $siswaIds)
+            ->forPembina('Kaprodi')  // Filter: Hanya yang melibatkan Kaprodi
+            ->whereHas('suratPanggilan')  // Filter: Harus punya surat
+            ->whereIn('status', ['Baru', 'Menunggu Persetujuan', 'Disetujui', 'Ditangani'])
+            ->latest()
+            ->get();
+
+        // DIAGRAM: Pelanggaran Populer di Jurusan (Filter Waktu & Kelas)
+        $chartPelanggaran = DB::table('riwayat_pelanggaran')
+            ->join('siswa', 'riwayat_pelanggaran.siswa_id', '=', 'siswa.id')
+            ->join('kelas', 'siswa.kelas_id', '=', 'kelas.id')
+            ->join('jenis_pelanggaran', 'riwayat_pelanggaran.jenis_pelanggaran_id', '=', 'jenis_pelanggaran.id')
+            ->where('kelas.jurusan_id', $jurusan->id)
+            ->when($kelasId, function($q) use ($kelasId) {
+                return $q->where('kelas.id', $kelasId);
+            })
             ->whereDate('riwayat_pelanggaran.tanggal_kejadian', '>=', $startDate)
             ->whereDate('riwayat_pelanggaran.tanggal_kejadian', '<=', $endDate)
-            ->select('kelas.nama_kelas', DB::raw('count(*) as total'))
-            ->groupBy('kelas.nama_kelas')
+            ->select('jenis_pelanggaran.nama_pelanggaran', DB::raw('count(*) as total'))
+            ->groupBy('jenis_pelanggaran.nama_pelanggaran')
             ->orderByDesc('total')
+            ->limit(10)
             ->get();
 
-        $chartLabels = $statistikKelas->pluck('nama_kelas');
-        $chartData = $statistikKelas->pluck('total');
+        $chartLabels = $chartPelanggaran->pluck('nama_pelanggaran');
+        $chartData = $chartPelanggaran->pluck('total');
 
-
-        // 5. TABEL RIWAYAT TERBARU (Kena Filter Waktu & Kelas)
-        $riwayatTerbaru = RiwayatPelanggaran::with(['siswa.kelas', 'jenisPelanggaran'])
-            ->whereHas('siswa.kelas', function($q) use ($jurusan, $kelasId) {
-                $q->where('jurusan_id', $jurusan->id);
-                if ($kelasId) $q->where('id', $kelasId);
-            })
+        // STATISTIK
+        $totalSiswa = $siswaIds->count();
+        $totalKasus = $kasusBaru->count();
+        $totalPelanggaran = RiwayatPelanggaran::whereIn('siswa_id', $siswaIds)
             ->whereDate('tanggal_kejadian', '>=', $startDate)
             ->whereDate('tanggal_kejadian', '<=', $endDate)
-            ->latest('tanggal_kejadian')
-            ->take(10)
-            ->get();
+            ->count();
 
         return view('dashboards.kaprodi', compact(
-            'jurusan', 'totalSiswa', 'pelanggaranBulanIni', 'kasusAktif',
-            'chartLabels', 'chartData', 'riwayatTerbaru',
-            'kelasJurusan', 'startDate', 'endDate' // Kirim data filter ke view
+            'jurusan', 
+            'kasusBaru',
+            'chartLabels', 
+            'chartData',
+            'totalSiswa',
+            'totalKasus',
+            'totalPelanggaran',
+            'kelasJurusan', 
+            'startDate', 
+            'endDate'
         ));
     }
 }

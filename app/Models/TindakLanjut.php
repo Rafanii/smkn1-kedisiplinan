@@ -56,6 +56,7 @@ class TindakLanjut extends Model
         'siswa_id',
         'pemicu',
         'sanksi_deskripsi',
+        'pembina_roles',  // ✅ NEW: Untuk filtering dashboard
         'denda_deskripsi',
         'status',
         'tanggal_tindak_lanjut',
@@ -70,6 +71,7 @@ class TindakLanjut extends Model
     protected $casts = [
         'tanggal_tindak_lanjut' => 'date',
         'status' => \App\Enums\StatusTindakLanjut::class,
+        'pembina_roles' => 'array',  // ✅ NEW: Cast JSON ke array
     ];
 
     // =====================================================================
@@ -193,5 +195,23 @@ class TindakLanjut extends Model
     public function scopeActive($query)
     {
         return $query->whereIn('status', ['Baru', 'Menunggu Persetujuan', 'Disetujui', 'Ditangani']);
+    }
+
+    /**
+     * Scope: Filter kasus untuk pembina tertentu.
+     * 
+     * Parameter $role harus salah satu dari:
+     * - 'Wali Kelas'
+     * - 'Kaprodi'
+     * - 'Waka Kesiswaan' / 'Waka Sarana'
+     * - 'Kepala Sekolah'
+     * 
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param string $role Role pembina (e.g., 'Wali Kelas')
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeForPembina($query, string $role)
+    {
+        return $query->whereJsonContains('pembina_roles', $role);
     }
 }

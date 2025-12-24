@@ -106,16 +106,16 @@ class TindakLanjutController extends Controller
      * 2. Return view
      */
     public function show(int $id): View
-{
-    $tindakLanjut = $this->tindakLanjutService->getTindakLanjutDetail($id);
-    
-    // Tambahkan ini untuk memastikan semua data relasi terbawa
-    $tindakLanjut->load(['siswa.kelas.jurusan', 'siswa.waliMurid']);
+    {
+        $tindakLanjut = $this->tindakLanjutService->getTindakLanjutDetail($id);
+        
+        // Tambahkan ini untuk memastikan semua data relasi terbawa
+        $tindakLanjut->load(['siswa.kelas.jurusan', 'siswa.waliMurid']);
 
-    return view('kepala_sekolah.approvals.show', [
-        'kasus' => $tindakLanjut
-    ]);
-}
+        return view('kepala_sekolah.approvals.show', [
+            'kasus' => $tindakLanjut
+        ]);
+    }
 
     /**
      * Tampilkan form edit tindak lanjut.
@@ -195,7 +195,7 @@ class TindakLanjutController extends Controller
     /**
      * Complete tindak lanjut (mark as selesai).
      */
-    public function complete(int $id): RedirectResponse
+    public function completeTindakLanjut(int $id): RedirectResponse
     {
         $this->tindakLanjutService->completeTindakLanjut($id);
 
@@ -214,5 +214,135 @@ class TindakLanjutController extends Controller
         return redirect()
             ->route('tindak-lanjut.index')
             ->with('success', 'Tindak lanjut berhasil dihapus.');
+    }
+
+    /**
+     * Preview surat panggilan sebelum cetak.
+     */
+    public function previewSurat(int $id): View
+    {
+        $kasus = $this->tindakLanjutService->getTindakLanjutDetail($id);
+        $kasus->load(['siswa.kelas.jurusan', 'suratPanggilan.printLogs.user']);
+        
+        return view('kepala_sekolah.kasus.preview_surat', [
+            'kasus' => $kasus,
+            'surat' => $kasus->suratPanggilan,
+        ]);
+    }
+
+    /**
+     * Edit surat panggilan.
+     */
+    public function editSurat(int $id): View
+    {
+        $kasus = $this->tindakLanjutService->getTindakLanjutDetail($id);
+        $kasus->load(['siswa.kelas', 'suratPanggilan']);
+        
+        return view('kepala_sekolah.kasus.edit_surat', [
+            'kasus' => $kasus,
+            'surat' => $kasus->suratPanggilan,
+        ]);
+    }
+
+    /**
+     * Update surat panggilan.
+     */
+    public function updateSurat(Request $request, int $id): RedirectResponse
+    {
+        $kasus = \App\Models\TindakLanjut::with('suratPanggilan')->findOrFail($id);
+        $surat = $kasus->suratPanggilan;
+
+        if (!$surat) {
+            return back()->with('error', 'Surat belum tersedia.');
+        }
+
+        $validated = $request->validate([
+    'nomor_surat' => 'required|string|max:255',
+    'lampiran' => 'nullable|string|max:255',
+    'hal' => 'required|string|max:255',
+    'tanggal_pertemuan' => 'required|date',
+    'waktu_pertemuan' => 'required',
+    'tempat_pertemuan' => 'required|string|max:255',
+    'keperluan' => 'required|string',
+]);
+
+        $surat->update($validated);
+
+        return redirect()->route('tindak-lanjut.preview-surat', $id)->with('success', 'Surat berhasil diperbarui!');
+    }
+
+    /**
+     * Cetak surat (Download PDF + Log).
+     */
+    public function cetakSurat(int $id)
+    {
+        $kasus = \App\Models\TindakLanjut::with(['siswa.kelas.jurusan', 'siswa.waliMurid', 'suratPanggilan'])->findOrFail($id);
+        $surat = $kasus->suratPanggilan;
+
+        // Log print activity
+        \App\Models\SuratPanggilanPrintLog::create([
+            'surat_panggilan_id' => $surat->id,
+            'user_id' => auth()->id(),
+            'printed_at' => now(),
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
+
+        // Convert logo to Base64
+        $path = public_path('assets/images/logo_riau.png');
+        $logoBase64 = null;
+        if (file_exists($path)) {
+            $type = pathinfo($path, PATHINFO_EXTENSION);
+            $data = file_get_contents($path);
+            $logoBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+        }
+
+        // Convert pembina roles
+        $pembinaRoles = $surat->pembina_roles ?? ['Wali Kelas', 'Waka Kesiswaan', 'Kepala Sekolah'];
+        $pihakTerlibat = [
+            'wali_kelas' => in_array('Wali Kelas', $pembinaRoles),
+            'kaprodi' => in_array('Kaprodi', $pembinaRoles),
+            'waka_kesiswaan' => in_array('Waka Kesiswaan', $pembinaRoles) || in_array('Waka Sarana', $pembinaRoles),
+            'kepala_sekolah' => in_array('Kepala Sekolah', $pembinaRoles),
+        ];
+
+        // Generate PDF
+        $pdf = \PDF::loadView('pdf.surat-panggilan', [
+            'siswa' => $kasus->siswa,
+            'surat' => $surat,
+            'logoBase64' => $logoBase64,
+            'pihakTerlibat' => $pihakTerlibat,
+        ]);
+
+        $pdf->setPaper([0, 0, 609.4488, 935.433], 'portrait');
+        $filename = 'Surat_Panggilan_' . $kasus->siswa->nisn . '.pdf';
+
+        return $pdf->stream($filename);
+    }
+
+    /**
+     * Mulai tangani kasus (change status: Baru -> Sedang Ditangani).
+     */
+    public function mulaiTangani(int $id): RedirectResponse
+    {
+        $kasus = \App\Models\TindakLanjut::findOrFail($id);
+
+        if ($kasus->status->value !== 'Baru') {
+            return back()->with('error', 'Kasus sudah dalam proses penanganan.');
+        }
+
+        $kasus->update([
+            'status' => 'Ditangani',
+            'tanggal_tindak_lanjut' => now(),
+        ]);
+
+        // Log activity
+        activity()
+            ->performedOn($kasus)
+            ->causedBy(auth()->user())
+            ->withProperties(['old_status' => 'Baru', 'new_status' => 'Ditangani'])
+            ->log('Status kasus diubah ke Sedang Ditangani');
+
+        return back()->with('success', 'Kasus berhasil dimulai penanganannya!');
     }
 }

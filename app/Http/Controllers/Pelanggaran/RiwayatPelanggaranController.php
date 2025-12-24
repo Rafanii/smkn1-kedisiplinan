@@ -145,35 +145,58 @@ class RiwayatPelanggaranController extends Controller
         // Counter for success message
         $totalRecorded = 0;
 
-        // Loop through each selected siswa
-        foreach ($request->siswa_id as $siswaId) {
-            // Loop through each selected jenis pelanggaran
-            foreach ($request->jenis_pelanggaran_id as $jenisPelanggaranId) {
-                // Create DTO for this combination
-                $riwayatData = RiwayatPelanggaranData::from([
-                    'id' => null,
-                    'siswa_id' => $siswaId,
-                    'jenis_pelanggaran_id' => $jenisPelanggaranId,
-                    'guru_pencatat_user_id' => $request->guru_pencatat_user_id,
-                    'tanggal_kejadian' => $combinedDateTime,
-                    'keterangan' => $request->keterangan,
-                    'bukti_foto_path' => $buktiFotoPath,
-                ]);
+        try {
+            // Loop through each selected siswa
+            foreach ($request->siswa_id as $siswaId) {
+                // Loop through each selected jenis pelanggaran
+                foreach ($request->jenis_pelanggaran_id as $jenisPelanggaranId) {
+                    // Create DTO for this combination
+                    $riwayatData = RiwayatPelanggaranData::from([
+                        'id' => null,
+                        'siswa_id' => $siswaId,
+                        'jenis_pelanggaran_id' => $jenisPelanggaranId,
+                        'guru_pencatat_user_id' => $request->guru_pencatat_user_id,
+                        'tanggal_kejadian' => $combinedDateTime,
+                        'keterangan' => $request->keterangan,
+                        'bukti_foto_path' => $buktiFotoPath,
+                    ]);
 
-                // Call service to record this violation
-                // Service will: save data + call RulesEngine + create tindak lanjut if needed
-                $this->pelanggaranService->catatPelanggaran($riwayatData);
+                    // Call service to record this violation
+                    // Service will: save data + call RulesEngine + create tindak lanjut if needed
+                    $this->pelanggaranService->catatPelanggaran($riwayatData);
 
-                $totalRecorded++;
+                    $totalRecorded++;
+                }
             }
-        }
 
-        // FIXED: Redirect back to catat pelanggaran form instead of riwayat.index
-        // Reason: Not all roles have access to riwayat.index (Guru doesn't)
-        // Better UX: Return to form so user can record more violations
-        return redirect()
-            ->route('riwayat.create')
-            ->with('success', "Berhasil mencatat {$totalRecorded} pelanggaran.");
+            // Success - redirect with success message
+            return redirect()
+                ->route('riwayat.create')
+                ->with('success', "Berhasil mencatat {$totalRecorded} pelanggaran.");
+                
+        } catch (\App\Exceptions\BusinessValidationException $e) {
+            // Business validation error - show user friendly message
+            \Log::error('Gagal mencatat pelanggaran (Business)', [
+                'error' => $e->getMessage(),
+            ]);
+            
+            return redirect()
+                ->back()
+                ->withInput()
+                ->withErrors(['error' => $e->getMessage()]);
+                
+        } catch (\Exception $e) {
+            // Unexpected error - log and show generic message
+            \Log::error('Gagal mencatat pelanggaran (Unexpected)', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            return redirect()
+                ->back()
+                ->withInput()
+                ->withErrors(['error' => 'Terjadi kesalahan saat mencatat pelanggaran. Silakan coba lagi atau hubungi administrator.']);
+        }
     }
 
     /**

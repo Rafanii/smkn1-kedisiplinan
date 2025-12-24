@@ -59,74 +59,58 @@ class SiswaPerluPembinaanController extends Controller
         $user = auth()->user();
         $userRole = \App\Services\User\RoleService::effectiveRoleName($user);
         
-        // Check if impersonating (Developer mode)
-        $isImpersonating = \App\Services\User\RoleService::isRealDeveloper($user) 
-                           && \App\Services\User\RoleService::getOverride();
-        
-        // Kepala Sekolah bisa lihat semua
-        if ($userRole !== 'Kepala Sekolah') {
-            $siswaList = $siswaList->filter(function ($item) use ($userRole, $user, $isImpersonating) {
-                $pembinaRoles = $item['rekomendasi']['pembina_roles'] ?? [];
+        // Apply pembina_roles filtering for ALL roles (including Kepala Sekolah)
+        $siswaList = $siswaList->filter(function ($item) use ($userRole, $user) {
+            $pembinaRoles = $item['rekomendasi']['pembina_roles'] ?? [];
+            
+            // BUGFIX: Handle if pembina_roles is still JSON string
+            if (is_string($pembinaRoles)) {
+                $pembinaRoles = json_decode($pembinaRoles, true) ?? [];
+            }
+            
+            // Check if user's role is in the recommended pembina roles
+            if (!in_array($userRole, $pembinaRoles)) {
+                return false;
+            }
+            
+            // Additional context-based filtering (only for Wali Kelas & Kaprodi)
+            $siswa = $item['siswa'];
+            
+            // Wali Kelas: hanya siswa di kelas binaan (STRICT - no exceptions)
+            if ($userRole === 'Wali Kelas') {
+                $kelasBinaan = $user->kelasDiampu;
                 
-                // BUGFIX: Handle if pembina_roles is still JSON string
-                if (is_string($pembinaRoles)) {
-                    $pembinaRoles = json_decode($pembinaRoles, true) ?? [];
-                }
-                
-                // DEBUG: Log for troubleshooting
-                \Log::info('Checking siswa pembinaan', [
-                    'siswa' => $item['siswa']->nama_siswa ?? 'unknown',
-                    'poin' => $item['total_poin'],
-                    'pembina_roles' => $pembinaRoles,
-                    'user_role' => $userRole,
-                ]);
-                
-                // Check if user's role is in the recommended pembina roles
-                if (!in_array($userRole, $pembinaRoles)) {
-                    \Log::info('Role not in pembina_roles - filtering out');
+                // If no kelas assigned, show nothing
+                if (!$kelasBinaan) {
                     return false;
                 }
                 
-                // IMPERSONATE MODE: Developer testing - show all siswa untuk role
-                if ($isImpersonating) {
-                    \Log::info('Impersonate mode - showing siswa for testing');
-                    return true; // Skip context filter untuk developer testing
+                // Strict kelas match
+                if ($siswa->kelas_id !== $kelasBinaan->id) {
+                    return false;
+                }
+            }
+            
+            // Kaprodi: hanya siswa di jurusan binaan (STRICT)
+            if ($userRole === 'Kaprodi') {
+                $jurusanBinaan = $user->jurusanDiampu;
+                
+                // If no jurusan assigned, show nothing
+                if (!$jurusanBinaan) {
+                    return false;
                 }
                 
-                // Additional context-based filtering
-                $siswa = $item['siswa'];
-                
-                // Wali Kelas: hanya siswa di kelas binaan
-                if ($userRole === 'Wali Kelas') {
-                    $kelasBinaan = $user->kelasDiampu;
-                    
-                    // TEMPORARY RELAX: Skip kelas validation if wali kelas not assigned yet
-                    if ($kelasBinaan && $siswa->kelas_id !== $kelasBinaan->id) {
-                        \Log::info('Wali Kelas kelas mismatch', [
-                            'siswa_kelas' => $siswa->kelas_id,
-                            'binaan' => $kelasBinaan->id,
-                        ]);
-                        return false;
-                    }
-                    
-                    if (!$kelasBinaan) {
-                        \Log::warning('Wali Kelas tidak punya kelas binaan - showing all');
-                    }
+                // Strict jurusan match
+                if (!$siswa->kelas || $siswa->kelas->jurusan_id !== $jurusanBinaan->id) {
+                    return false;
                 }
-                
-                // Kaprodi: hanya siswa di jurusan binaan
-                if ($userRole === 'Kaprodi') {
-                    $jurusanBinaan = $user->jurusanDiampu;
-                    if (!$jurusanBinaan || !$siswa->kelas || $siswa->kelas->jurusan_id !== $jurusanBinaan->id) {
-                        return false;
-                    }
-                }
-                
-                // Waka Kesiswaan: tidak perlu filter additional (semua sekolah)
-                
-                return true;
-            });
-        }
+            }
+            
+            // Waka Kesiswaan & Kepala Sekolah: tidak perlu filter additional (semua sekolah)
+            // Sudah cukup dengan pembina_roles check di atas
+            
+            return true;
+        });
         
         // Filter by kelas
         if ($kelasId) {
@@ -198,6 +182,46 @@ class SiswaPerluPembinaanController extends Controller
         }
         
         $siswaList = $this->rulesEngine->getSiswaPerluPembinaan($poinMin, $poinMax);
+        
+        // =====================================================================
+        // Apply same role-based filtering as index method
+        // =====================================================================
+        $user = auth()->user();
+        $userRole = \App\Services\User\RoleService::effectiveRoleName($user);
+        
+        // Apply pembina_roles filtering for ALL roles (including Kepala Sekolah)
+        $siswaList = $siswaList->filter(function ($item) use ($userRole, $user) {
+            $pembinaRoles = $item['rekomendasi']['pembina_roles'] ?? [];
+            
+            if (is_string($pembinaRoles)) {
+                $pembinaRoles = json_decode($pembinaRoles, true) ?? [];
+            }
+            
+            // Check if user's role is in the recommended pembina roles
+            if (!in_array($userRole, $pembinaRoles)) {
+                return false;
+            }
+            
+            $siswa = $item['siswa'];
+            
+            // Wali Kelas: hanya siswa di kelas binaan
+            if ($userRole === 'Wali Kelas') {
+                $kelasBinaan = $user->kelasDiampu;
+                if ($kelasBinaan && $siswa->kelas_id !== $kelasBinaan->id) {
+                    return false;
+                }
+            }
+            
+            // Kaprodi: hanya siswa di jurusan binaan
+            if ($userRole === 'Kaprodi') {
+                $jurusanBinaan = $user->jurusanDiampu;
+                if (!$jurusanBinaan || !$siswa->kelas || $siswa->kelas->jurusan_id !== $jurusanBinaan->id) {
+                    return false;
+                }
+            }
+            
+            return true;
+        });
         
         if ($kelasId) {
             $siswaList = $siswaList->filter(fn($item) => $item['siswa']->kelas_id == $kelasId);

@@ -29,12 +29,15 @@ class SuratPanggilan extends Model
     protected $fillable = [
         'tindak_lanjut_id',
         'nomor_surat',
+        'lampiran',           // NEW
+        'hal',                // NEW
         'tipe_surat',
         'pembina_data',
         'pembina_roles',  // Field untuk template tanda tangan
         'tanggal_surat',
         'tanggal_pertemuan',
         'waktu_pertemuan',
+        'tempat_pertemuan',   // NEW
         'keperluan',
         'file_path_pdf',
     ];
@@ -62,5 +65,30 @@ class SuratPanggilan extends Model
     public function tindakLanjut(): BelongsTo
     {
         return $this->belongsTo(TindakLanjut::class, 'tindak_lanjut_id');
+    }
+
+    /**
+     * Relasi: SATU SuratPanggilan MEMILIKI BANYAK PrintLog.
+     */
+    public function printLogs()
+    {
+        return $this->hasMany(SuratPanggilanPrintLog::class, 'surat_panggilan_id')
+                    ->orderBy('printed_at', 'desc');
+    }
+
+    /**
+     * Get last print info
+     */
+    public function getLastPrintedAttribute()
+    {
+        return $this->printLogs()->first();
+    }
+
+    /**
+     * Get total print count
+     */
+    public function getPrintCountAttribute()
+    {
+        return $this->printLogs()->count();
     }
 }

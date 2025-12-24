@@ -9,6 +9,7 @@ use App\Data\Siswa\SiswaFilterData;
 use App\Http\Requests\Siswa\CreateSiswaRequest;
 use App\Http\Requests\Siswa\UpdateSiswaRequest;
 use App\Http\Requests\Siswa\FilterSiswaRequest;
+use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
@@ -206,14 +207,122 @@ class SiswaController extends Controller
 
     /**
      * Hapus siswa.
+     * 
+     * UPDATED: Sekarang menerima alasan_keluar dan keterangan_keluar dari form.
      */
-    public function destroy(int $id): RedirectResponse
+    public function destroy(Request $request, int $id): RedirectResponse
     {
+        // Validasi input alasan keluar
+        $validated = $request->validate([
+            'alasan_keluar' => 'required|in:Alumni,Dikeluarkan,Pindah Sekolah,Lainnya',
+            'keterangan_keluar' => 'nullable|string|max:500',
+        ]);
+
+        // Ambil siswa
+        $siswa = \App\Models\Siswa::findOrFail($id);
+        
+        // Set alasan & keterangan keluar sebelum soft delete
+        $siswa->alasan_keluar = $validated['alasan_keluar'];
+        $siswa->keterangan_keluar = $validated['keterangan_keluar'] ?? null;
+        $siswa->save();
+
+        // Soft delete via service
         $this->siswaService->deleteSiswa($id);
 
         return redirect()
             ->route('siswa.index')
-            ->with('success', 'Data Siswa Berhasil Dihapus');
+            ->with('success', "Data Siswa Berhasil Dihapus dengan alasan: {$validated['alasan_keluar']}");
+    }
+
+    /**
+     * Bulk delete siswa per kelas.
+     * 
+     * ALUR:
+     * 1. Validasi input (kelas_id, alasan_keluar, confirm)
+     * 2. Ambil semua siswa di kelas tersebut
+     * 3. Soft delete semua siswa dengan alasan keluar
+     * 4. Opsional: Hapus akun wali murid yang orphaned (tidak punya siswa aktif)
+     * 5. Return dengan success message
+     */
+    public function bulkDelete(Request $request): RedirectResponse
+    {
+        // Validasi input
+        $validated = $request->validate([
+            'kelas_id' => 'required|exists:kelas,id',
+            'alasan_keluar' => 'required|in:Alumni,Dikeluarkan,Pindah Sekolah,Lainnya',
+            'keterangan_keluar' => 'nullable|string|max:500',
+            'delete_orphaned_wali' => 'nullable|boolean',
+            'confirm' => 'required|accepted',
+        ]);
+
+        try {
+            // Ambil semua siswa di kelas
+            $siswaList = \App\Models\Siswa::where('kelas_id', $validated['kelas_id'])->get();
+            
+            if ($siswaList->isEmpty()) {
+                return back()->with('error', 'Tidak ada siswa aktif di kelas ini.');
+            }
+
+            $deletedCount = 0;
+            $waliIds = [];
+
+            // Soft delete setiap siswa
+            foreach ($siswaList as $siswa) {
+                // Simpan wali_murid_id untuk cek orphaned nanti
+                if ($siswa->wali_murid_id) {
+                    $waliIds[] = $siswa->wali_murid_id;
+                }
+
+                // Set alasan & keterangan keluar (deleted_at akan di-set otomatis oleh delete())
+                $siswa->alasan_keluar = $validated['alasan_keluar'];
+                $siswa->keterangan_keluar = $validated['keterangan_keluar'] ?? null;
+                $siswa->save();
+
+                // Soft delete (deleted_at akan di-set ke now() otomatis)
+                $siswa->delete();
+                $deletedCount++;
+            }
+
+            // Opsional: Hapus wali murid yang orphaned
+            $deletedWaliCount = 0;
+            if ($request->input('delete_orphaned_wali')) {
+                $waliIds = array_unique($waliIds);
+                
+                foreach ($waliIds as $waliId) {
+                    // Cek apakah wali ini masih punya siswa aktif
+                    $hasActiveSiswa = \App\Models\Siswa::where('wali_murid_id', $waliId)
+                        ->whereNull('deleted_at')
+                        ->exists();
+                    
+                    if (!$hasActiveSiswa) {
+                        // Tidak ada siswa aktif, hapus akun wali
+                        $wali = \App\Models\User::find($waliId);
+                        if ($wali) {
+                            $wali->delete(); // Soft delete
+                            $deletedWaliCount++;
+                        }
+                    }
+                }
+            }
+
+            // Success message
+            $message = "Berhasil menghapus {$deletedCount} siswa dengan alasan: {$validated['alasan_keluar']}.";
+            if ($deletedWaliCount > 0) {
+                $message .= " {$deletedWaliCount} akun wali murid yang tidak lagi memiliki siswa aktif juga telah dihapus.";
+            }
+
+            return redirect()
+                ->route('siswa.index')
+                ->with('success', $message);
+
+        } catch (\Exception $e) {
+            \Log::error('Bulk Delete Siswa Error', [
+                'kelas_id' => $validated['kelas_id'],
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'Gagal menghapus siswa: ' . $e->getMessage());
+        }
     }
 
     /**

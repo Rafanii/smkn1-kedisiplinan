@@ -492,6 +492,7 @@ class PelanggaranRulesEngine
                     'siswa_id' => $siswaId,
                     'pemicu' => $pemicu,
                     'sanksi_deskripsi' => $sanksi,
+                    'pembina_roles' => $pembinaRoles,  // ✅ CRITICAL: Untuk filtering dashboard
                     'status' => $status,
                 ]);
 
